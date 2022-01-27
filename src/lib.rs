@@ -11,8 +11,8 @@ pub fn run(file1_path: &str, file2_path: &str) {
 
     let mut unified_bibliography = Bibliography::new();
     let mut repetitions_found = 0;
-    repetitions_found += add_bibliography_to_unified(bibliography1, &mut unified_bibliography);
-    repetitions_found += add_bibliography_to_unified(bibliography2, &mut unified_bibliography);
+    repetitions_found += add_to_unified(bibliography1, &mut unified_bibliography);
+    repetitions_found += add_to_unified(bibliography2, &mut unified_bibliography);
     println!(
         "Repetitions deleted: {}. Final number of entries: {}",
         repetitions_found,
@@ -22,10 +22,7 @@ pub fn run(file1_path: &str, file2_path: &str) {
 }
 
 // Adds a Bibliography to another unified Bibliography file. Checks for repetitions in the process.
-fn add_bibliography_to_unified(
-    to_add: Bibliography,
-    unified_bibliography: &mut Bibliography,
-) -> i32 {
+fn add_to_unified(to_add: Bibliography, unified_bibliography: &mut Bibliography) -> i32 {
     // to_add will be consumed by this function
     let mut repetitions = 0;
     for mut entry in to_add.into_iter() {
@@ -70,5 +67,87 @@ fn get_new_citation_key(old_key: &str, bibliography: &Bibliography) -> String {
         } else {
             return new_key;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn setup() -> (Bibliography, Bibliography) {
+        let file1 = fs::read_to_string("test_files/test1.bib").expect("Could not read file1");
+        let file2 = fs::read_to_string("test_files/test2.bib").expect("Could not read file2");
+        let bibliography1 = Bibliography::parse(&file1).expect("Could not parse file1");
+        let bibliography2 = Bibliography::parse(&file2).expect("Could not parse file2");
+        (bibliography1, bibliography2)
+    }
+
+    #[test]
+    fn test_parsing() {
+        let (bibliography1, bibliography2) = setup();
+        assert_eq!(bibliography1.len(), 8);
+        assert_eq!(bibliography2.len(), 6);
+        assert!(bibliography1.get("lalala").is_none());
+        let prior = bibliography1.get("Prior1960").expect("No entry with key Prior1960");
+        let prior_title = prior.title().unwrap().format_verbatim();
+        assert_eq!(&prior_title, "The Runabout Inference-Ticket")
+    }
+
+    #[test]
+    fn test_is_present() {
+        let (bibliography1, bibliography2) = setup();
+
+        // Identical title
+        let montague = bibliography1
+            .get("Montague1973QuantificationOrdinaryEnglish")
+            .unwrap();
+        assert!(is_present(montague, &bibliography2));
+        let frege = bibliography1.get("FregeGrundlagen").expect("No entry with key FregeGrundlagen");
+        assert!(!is_present(frege, &bibliography2));
+
+        // Similar title (for now should return false, todo change to true later on)
+        let bps = bibliography1.get("BPS2018-WIAPL").expect("No entry with key BPS2018-WIAPL");
+        assert!(!is_present(bps, &bibliography2));
+        let carnap = bibliography1.get("Carnap1942").expect("No entry with key Carnap1942");
+        assert!(!is_present(carnap, &bibliography2));
+    }
+
+    #[test]
+    fn test_get_new_citation_key() {
+        let (mut bibliography1, bibliography2) = setup();
+
+        assert_eq!(
+            get_new_citation_key("Carnap1942", &bibliography1),
+            String::from("Carnap1942_1")
+        );
+
+        // Lets get Carnap1942 from bibliography2, insert it into 1 again, withe key Carnap1942_1
+        let mut carnap2 = bibliography2.get_resolved("Carnap1942").expect("No entry with key Carnap1942");
+        carnap2.key = String::from("Carnap1942_1");
+        bibliography1.insert(carnap2);
+        // Now get_new_citation_key should return "Carnap1942_2"
+        assert_eq!(
+            get_new_citation_key("Carnap1942", &bibliography1),
+            String::from("Carnap1942_2")
+        );
+    }
+
+    #[test]
+    fn test_add_to_unified() {
+        let (bibliography1, bibliography2) = setup();
+        let mut unified_bibliography = Bibliography::new();
+
+        // bibliography1 has 1 repeated entry inside
+        assert_eq!(bibliography1.len(), 8);
+        let repetitions1 = add_to_unified(bibliography1, &mut unified_bibliography);
+        assert_eq!(unified_bibliography.len(), 7);
+        assert_eq!(repetitions1, 1);
+
+        // bibliography2 has 2 repetitions (with bibliography 1) -not counting similar entries
+        // todo adjust for similar entries later
+        assert_eq!(bibliography2.len(), 6);
+        let repetitions2 = add_to_unified(bibliography2, &mut unified_bibliography);
+        assert_eq!(unified_bibliography.len(), 11);
+        assert_eq!(repetitions2, 2);
     }
 }
