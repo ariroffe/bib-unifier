@@ -13,23 +13,26 @@ fn main() {
     let bibliography2 = Bibliography::parse(&file2).expect("Could not parse file2");
 
     let mut unified_bibliography = Bibliography::new();
-    add_bibliography_to_unified(bibliography1, &mut unified_bibliography);
-    add_bibliography_to_unified(bibliography2, &mut unified_bibliography);
-    println!("Final number of entries: {}", unified_bibliography.len());
+    let mut repetitions_found = 0;
+    repetitions_found += add_bibliography_to_unified(bibliography1, &mut unified_bibliography);
+    repetitions_found += add_bibliography_to_unified(bibliography2, &mut unified_bibliography);
+    println!("Repetitions deleted: {}. Final number of entries: {}", repetitions_found, unified_bibliography.len());
     // println!("\n\n FINAL BIBLIOGRAPHY: {:?}", unified_bibliography);
 }
 
-fn add_bibliography_to_unified(
-    to_add: Bibliography,  // to_add will be consumed by this function
-    unified: &mut Bibliography,
-) -> &mut Bibliography {
+// Adds a Bibliography to another unified Bibliography file. Checks for repetitions in the process.
+fn add_bibliography_to_unified(to_add: Bibliography, unified: &mut Bibliography) -> i32 {
+    let mut repetitions = 0;
+    // to_add will be consumed by this function
     for mut entry in to_add.into_iter() {
-        if !is_present(&entry, unified) {
+        if is_present(&entry, unified) {
+            repetitions += 1
+        } else {
             entry.key = get_new_citation_key(&entry.key, &unified);
             unified.insert(entry);
         }
     }
-    unified
+    repetitions
 }
 
 // Checks if an entry is already present in a Bibliography
@@ -46,13 +49,14 @@ fn is_present(entry: &Entry, bibliography: &Bibliography) -> bool {
     false
 }
 
-// If the Entry is not repeated, we need to assign it a citation key that is not already present
+// If the Entry is not repeated, we need to assign it a citation key that is not already present.
+// Otherwise it won't get added correctly to the Bibliography
 fn get_new_citation_key(old_key: &str, bibliography: &Bibliography) -> String {
-    // If the key is not present return it as a String
+    // If the original key is not present return it as a String
     if bibliography.get(&old_key).is_none() {
         return old_key.to_owned();
     }
-    // If the key is already present
+    // If the original key is already present
     let mut try_num: u8 = 1;
     loop {
         // Create a new String with form "oldkey_num"
