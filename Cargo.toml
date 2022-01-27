@@ -1,9 +1,10 @@
 [package]
 name = "bib_unifier"
 version = "0.1.0"
-authors = ["ariel <ariroffe@gmail.com>"]
-edition = "2018"
+authors = ["Ariel Jonathan Roffé <arielroffe@filo.uba.ar>"]
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+biblatex = "0.4"
