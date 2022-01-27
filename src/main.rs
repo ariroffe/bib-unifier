@@ -16,27 +16,39 @@ fn main() {
     let mut repetitions_found = 0;
     repetitions_found += add_bibliography_to_unified(bibliography1, &mut unified_bibliography);
     repetitions_found += add_bibliography_to_unified(bibliography2, &mut unified_bibliography);
-    println!("Repetitions deleted: {}. Final number of entries: {}", repetitions_found, unified_bibliography.len());
+    println!(
+        "Repetitions deleted: {}. Final number of entries: {}",
+        repetitions_found,
+        unified_bibliography.len()
+    );
     // println!("\n\n FINAL BIBLIOGRAPHY: {:?}", unified_bibliography);
 }
 
 // Adds a Bibliography to another unified Bibliography file. Checks for repetitions in the process.
-fn add_bibliography_to_unified(to_add: Bibliography, unified: &mut Bibliography) -> i32 {
-    let mut repetitions = 0;
+fn add_bibliography_to_unified(
+    to_add: Bibliography,
+    unified_bibliography: &mut Bibliography,
+) -> i32 {
     // to_add will be consumed by this function
+    let mut repetitions = 0;
     for mut entry in to_add.into_iter() {
-        if is_present(&entry, unified) {
+        if is_present(&entry, unified_bibliography) {
             repetitions += 1
         } else {
-            entry.key = get_new_citation_key(&entry.key, &unified);
-            unified.insert(entry);
+            // If it is not present, we add it to the unified bibliography
+            // First check if the citation key is already present
+            if unified_bibliography.get(&entry.key).is_some() {
+                // If it is, get a new key, otherwise it won't be added correctly
+                entry.key = get_new_citation_key(&entry.key, &unified_bibliography);
+            }
+            // Add it
+            unified_bibliography.insert(entry);
         }
     }
     repetitions
 }
 
-// Checks if an entry is already present in a Bibliography
-// Should check if the title is present (either identically or similarly, depending on config)
+// Checks if an entry is already present in a Bibliography, with a given similarity threshold
 fn is_present(entry: &Entry, bibliography: &Bibliography) -> bool {
     let entry_title = entry.title().unwrap().format_verbatim();
     // format_verbatim is necessary to get it as a String instead of [&Chunk]
@@ -49,17 +61,11 @@ fn is_present(entry: &Entry, bibliography: &Bibliography) -> bool {
     false
 }
 
-// If the Entry is not repeated, we need to assign it a citation key that is not already present.
-// Otherwise it won't get added correctly to the Bibliography
+// Gets a new, non-repeated, citation key for an Entry
 fn get_new_citation_key(old_key: &str, bibliography: &Bibliography) -> String {
-    // If the original key is not present return it as a String
-    if bibliography.get(&old_key).is_none() {
-        return old_key.to_owned();
-    }
-    // If the original key is already present
     let mut try_num: u8 = 1;
     loop {
-        // Create a new String with form "oldkey_num"
+        // Create a new String with form "oldkey_trynum" (e.g. "Roffe2021_1")
         let new_key = format!("{}_{}", old_key, try_num);
         // If it already exists, sum 1 to the number and try again. Else return the new string
         if bibliography.get(&new_key).is_some() {
