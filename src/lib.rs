@@ -70,7 +70,6 @@ fn is_present(entry: &Entry, bibliography: &Bibliography) -> bool {
     // format_verbatim is necessary to get it as a String instead of [&Chunk]
     for prev_entry in bibliography.iter() {
         if entry_title == prev_entry.title().unwrap().format_verbatim() {
-            println!("Repeated title: {}", entry_title);
             return true;
         }
     }
@@ -167,6 +166,7 @@ mod tests {
     #[test]
     fn test_add_to_unified() {
         let (bibliography1, bibliography2) = setup();
+        let bibliography1_copy = bibliography1.clone();
         let mut unified_bibliography = Bibliography::new();
 
         // bibliography1 has 1 repeated entry inside
@@ -175,11 +175,16 @@ mod tests {
         assert_eq!(unified_bibliography.len(), 7);
         assert_eq!(repetitions1, 1);
 
+        // If we attempt to add bibliography1 again, we should not get any new entries
+        let repetitions2 = add_to_unified(bibliography1_copy, &mut unified_bibliography);
+        assert_eq!(unified_bibliography.len(), 7);
+        assert_eq!(repetitions2, 8);  // because bibliography1 has 8 entries, 1 is repeated
+
         // bibliography2 has 2 repetitions (with bibliography 1) -not counting similar entries
         // todo adjust for similar entries later
         assert_eq!(bibliography2.len(), 6);
-        let repetitions2 = add_to_unified(bibliography2, &mut unified_bibliography);
+        let repetitions3 = add_to_unified(bibliography2, &mut unified_bibliography);
         assert_eq!(unified_bibliography.len(), 11);
-        assert_eq!(repetitions2, 2);
+        assert_eq!(repetitions3, 2);
     }
 }
