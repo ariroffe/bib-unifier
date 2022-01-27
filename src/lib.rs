@@ -2,23 +2,45 @@ use ::std::fs;
 
 use biblatex::{Bibliography, ChunksExt, Entry};
 
-pub fn run(file1_path: &str, file2_path: &str) {
-    let file1 = fs::read_to_string(file1_path).expect("Could not read file1");
-    let file2 = fs::read_to_string(file2_path).expect("Could not read file2");
+#[derive(Debug)]
+pub enum Algorithm {
+    Levenshtein,
+    DamerauLevenshtein,
+    Jaro,
+    JaroWinkler,
+    SorensenDice,
+}
 
-    let bibliography1 = Bibliography::parse(&file1).expect("Could not parse file1");
-    let bibliography2 = Bibliography::parse(&file2).expect("Could not parse file2");
+#[derive(Debug)]
+pub struct Config {
+    pub filepaths: Vec<String>,
+    pub similarity_threshold: f64,
+    pub algorithm: Algorithm,
+}
 
+pub fn run(config: Config) {
+    // todo fix later on, we want to pass a directory not file paths. Also, do not panic!
+    // Get the file as string for each of the filepaths in config.filepaths (as an iterator)
+    let files = config
+        .filepaths
+        .iter()
+        .map(|filepath| fs::read_to_string(filepath).unwrap());
+    // Get the parsed Bibliography from each file string (as an iterator)
+    let bibliographies = files.map(|file| Bibliography::parse(&file).unwrap());
+
+    // Unify the bibliography
+    // todo move both this and the above to separate functions. See the types in the signatures
     let mut unified_bibliography = Bibliography::new();
     let mut repetitions_found = 0;
-    repetitions_found += add_to_unified(bibliography1, &mut unified_bibliography);
-    repetitions_found += add_to_unified(bibliography2, &mut unified_bibliography);
+    for bibliography in bibliographies {
+        repetitions_found += add_to_unified(bibliography, &mut unified_bibliography);
+    }
+
     println!(
         "Repetitions deleted: {}. Final number of entries: {}",
         repetitions_found,
         unified_bibliography.len()
     );
-    // println!("\n\n FINAL BIBLIOGRAPHY: {:?}", unified_bibliography);
 }
 
 // Adds a Bibliography to another unified Bibliography file. Checks for repetitions in the process.
@@ -88,7 +110,9 @@ mod tests {
         assert_eq!(bibliography1.len(), 8);
         assert_eq!(bibliography2.len(), 6);
         assert!(bibliography1.get("lalala").is_none());
-        let prior = bibliography1.get("Prior1960").expect("No entry with key Prior1960");
+        let prior = bibliography1
+            .get("Prior1960")
+            .expect("No entry with key Prior1960");
         let prior_title = prior.title().unwrap().format_verbatim();
         assert_eq!(&prior_title, "The Runabout Inference-Ticket")
     }
@@ -102,13 +126,19 @@ mod tests {
             .get("Montague1973QuantificationOrdinaryEnglish")
             .unwrap();
         assert!(is_present(montague, &bibliography2));
-        let frege = bibliography1.get("FregeGrundlagen").expect("No entry with key FregeGrundlagen");
+        let frege = bibliography1
+            .get("FregeGrundlagen")
+            .expect("No entry with key FregeGrundlagen");
         assert!(!is_present(frege, &bibliography2));
 
         // Similar title (for now should return false, todo change to true later on)
-        let bps = bibliography1.get("BPS2018-WIAPL").expect("No entry with key BPS2018-WIAPL");
+        let bps = bibliography1
+            .get("BPS2018-WIAPL")
+            .expect("No entry with key BPS2018-WIAPL");
         assert!(!is_present(bps, &bibliography2));
-        let carnap = bibliography1.get("Carnap1942").expect("No entry with key Carnap1942");
+        let carnap = bibliography1
+            .get("Carnap1942")
+            .expect("No entry with key Carnap1942");
         assert!(!is_present(carnap, &bibliography2));
     }
 
@@ -122,7 +152,9 @@ mod tests {
         );
 
         // Lets get Carnap1942 from bibliography2, insert it into 1 again, withe key Carnap1942_1
-        let mut carnap2 = bibliography2.get_resolved("Carnap1942").expect("No entry with key Carnap1942");
+        let mut carnap2 = bibliography2
+            .get_resolved("Carnap1942")
+            .expect("No entry with key Carnap1942");
         carnap2.key = String::from("Carnap1942_1");
         bibliography1.insert(carnap2);
         // Now get_new_citation_key should return "Carnap1942_2"
