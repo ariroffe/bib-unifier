@@ -1,5 +1,9 @@
 //use ::std::fs;
-use std::{ fs, io, path::{Path, PathBuf}, ffi::OsStr };
+use std::{
+    ffi::OsStr,
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 use biblatex::{Bibliography, ChunksExt, Entry};
 
@@ -19,17 +23,21 @@ pub struct Config {
     pub algorithm: Algorithm,
 }
 
-pub fn run(config: Config) {
+pub fn run(mut config: Config) {
     // Get the bibliographies
     let bibliographies = get_filepaths(config.path_dir.as_path()).unwrap();
     let bibliographies = get_files(bibliographies).unwrap();
+    if bibliographies.len() == 0 {
+        panic!("No .bib files in the specified directory")
+    }
     let bibliographies = get_bibliographies(bibliographies);
 
     // Unify the bibliography
-    let repetitions_found = unify_bibliography(bibliographies);
+    let unified_bibliography = unify_bibliography(bibliographies);
 
-    // Do something with the result
-    println!("Repetitions deleted: {}", repetitions_found);
+    // Write the result to a file
+    config.path_dir.push("[bib_unifier]bibliography.bib");
+    fs::write(config.path_dir, unified_bibliography.to_bibtex_string()).unwrap();
 }
 
 // Read a directory path and return a vec of the .bib filepaths (i.e. PathBuf's) inside it
@@ -38,11 +46,27 @@ fn get_filepaths(path_dir: &Path) -> io::Result<Vec<PathBuf>> {
 
     for path in fs::read_dir(path_dir)? {
         let path = path?.path();
-        if let Some("bib") = path.extension().and_then(OsStr::to_str) {
-            bib_filepaths.push(path.to_owned());
+        if include_path(path.as_path()) {
+            bib_filepaths.push(path);
         }
     }
     Ok(bib_filepaths)
+}
+
+// Check whether a file needs to be included in the unification or not
+// (has to be a .bib file and not begin with [bib_unifier])
+fn include_path(path: &Path) -> bool {
+    // Check that the extension is .bib
+    if let Some("bib") = path.extension().and_then(OsStr::to_str) {
+        // Check that the file is not a previous output of the program itself
+        // i.e. that it does not begin with [bib_unifier]
+        if let Some(filename) = path.file_name().and_then(OsStr::to_str) {
+            if !filename.starts_with("[bib_unifier]") {
+                return true
+            }
+        };
+    }
+    false
 }
 
 // Given a vec of PathBufs, return a vec of the file contents
@@ -55,7 +79,7 @@ fn get_files(filepaths: Vec<PathBuf>) -> io::Result<Vec<String>> {
 }
 
 // Given a vec of Strings (contents of the .bib files), return a vec of Bibliography
-fn get_bibliographies(file_contents: Vec<String>) -> Vec<Bibliography>{
+fn get_bibliographies(file_contents: Vec<String>) -> Vec<Bibliography> {
     let mut bibliographies = vec![];
     for file_content in file_contents.into_iter() {
         bibliographies.push(Bibliography::parse(&file_content).unwrap());
@@ -63,13 +87,16 @@ fn get_bibliographies(file_contents: Vec<String>) -> Vec<Bibliography>{
     bibliographies
 }
 
-fn unify_bibliography(bibliographies: Vec<Bibliography>) -> i32 {
+// Takes a vec of Bibliography and returns a single Bibliography file with repetitions deleted
+// as well as the number of repetitions that were deleted
+fn unify_bibliography(bibliographies: Vec<Bibliography>) -> Bibliography {
     let mut unified_bibliography = Bibliography::new();
     let mut repetitions_found = 0;
     for bibliography in bibliographies {
         repetitions_found += add_to_unified(bibliography, &mut unified_bibliography);
     }
-    repetitions_found
+    println!("Repetitions deleted: {}", repetitions_found);
+    unified_bibliography
 }
 
 // Adds a Bibliography to another unified Bibliography file. Checks for repetitions in the process.
@@ -78,6 +105,7 @@ fn add_to_unified(to_add: Bibliography, unified_bibliography: &mut Bibliography)
     let mut repetitions = 0;
     for mut entry in to_add.into_iter() {
         if is_present(&entry, unified_bibliography) {
+            //println!("Repeated entry: {:?}", &entry);
             repetitions += 1
         } else {
             // If it is not present, we add it to the unified bibliography
@@ -125,8 +153,10 @@ mod tests {
     use super::*;
 
     fn setup() -> (Bibliography, Bibliography) {
-        let file1 = fs::read_to_string("bib_files/test_files/test1.bib").expect("Could not read file1");
-        let file2 = fs::read_to_string("bib_files/test_files/test2.bib").expect("Could not read file2");
+        let file1 =
+            fs::read_to_string("bib_files/test_files/test1.bib").expect("Could not read file1");
+        let file2 =
+            fs::read_to_string("bib_files/test_files/test2.bib").expect("Could not read file2");
         let bibliography1 = Bibliography::parse(&file1).expect("Could not parse file1");
         let bibliography2 = Bibliography::parse(&file2).expect("Could not parse file2");
         (bibliography1, bibliography2)
@@ -137,8 +167,14 @@ mod tests {
         let path_dir = PathBuf::from("bib_files/test_files/");
         let filepaths = get_filepaths(path_dir.as_path()).unwrap();
         assert_eq!(filepaths.len(), 2);
-        assert_eq!(filepaths[0].to_str().unwrap(), "bib_files/test_files/test1.bib");
-        assert_eq!(filepaths[1].to_str().unwrap(), "bib_files/test_files/test2.bib");
+        assert_eq!(
+            filepaths[0].to_str().unwrap(),
+            "bib_files/test_files/test1.bib"
+        );
+        assert_eq!(
+            filepaths[1].to_str().unwrap(),
+            "bib_files/test_files/test2.bib"
+        );
     }
 
     #[test]
@@ -216,7 +252,7 @@ mod tests {
         // If we attempt to add bibliography1 again, we should not get any new entries
         let repetitions2 = add_to_unified(bibliography1_copy, &mut unified_bibliography);
         assert_eq!(unified_bibliography.len(), 7);
-        assert_eq!(repetitions2, 8);  // because bibliography1 has 8 entries, 1 is repeated
+        assert_eq!(repetitions2, 8); // because bibliography1 has 8 entries, 1 is repeated
 
         // bibliography2 has 2 repetitions (with bibliography 1) -not counting similar entries
         // todo adjust for similar entries later
