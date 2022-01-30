@@ -62,9 +62,9 @@ fn include_path(path: &Path) -> bool {
         // i.e. that it does not begin with [bib_unifier]
         if let Some(filename) = path.file_name().and_then(OsStr::to_str) {
             if !filename.starts_with("[bib_unifier]") {
-                return true
+                return true;
             }
-        };
+        }
     }
     false
 }
@@ -175,6 +175,19 @@ mod tests {
             filepaths[1].to_str().unwrap(),
             "bib_files/test_files/test2.bib"
         );
+    }
+
+    #[test]
+    fn test_include_path() {
+        assert!(include_path(
+            PathBuf::from("bib_files/test_files/test1.bib").as_path()
+        ));
+        assert!(!include_path(
+            PathBuf::from("bib_files/test_files/test1.txt").as_path()
+        ));
+        assert!(!include_path(
+            PathBuf::from("bib_files/test_files/[bib_unifier]test1.bib").as_path()
+        ));
     }
 
     #[test]
