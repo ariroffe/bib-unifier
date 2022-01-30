@@ -1,4 +1,5 @@
-use ::std::fs;
+//use ::std::fs;
+use std::{ fs, io, path::{Path, PathBuf}, ffi::OsStr };
 
 use biblatex::{Bibliography, ChunksExt, Entry};
 
@@ -13,34 +14,62 @@ pub enum Algorithm {
 
 #[derive(Debug)]
 pub struct Config {
-    pub filepaths: Vec<String>,
+    pub path_dir: PathBuf,
     pub similarity_threshold: f64,
     pub algorithm: Algorithm,
 }
 
 pub fn run(config: Config) {
-    // todo fix later on, we want to pass a directory not file paths. Also, do not panic!
-    // Get the file as string for each of the filepaths in config.filepaths (as an iterator)
-    let files = config
-        .filepaths
-        .iter()
-        .map(|filepath| fs::read_to_string(filepath).unwrap());
-    // Get the parsed Bibliography from each file string (as an iterator)
-    let bibliographies = files.map(|file| Bibliography::parse(&file).unwrap());
+    // Get the bibliographies
+    let bibliographies = get_filepaths(config.path_dir.as_path()).unwrap();
+    let bibliographies = get_files(bibliographies).unwrap();
+    let bibliographies = get_bibliographies(bibliographies);
 
     // Unify the bibliography
-    // todo move both this and the above to separate functions. See the types in the signatures
+    let repetitions_found = unify_bibliography(bibliographies);
+
+    // Do something with the result
+    println!("Repetitions deleted: {}", repetitions_found);
+}
+
+// Read a directory path and return a vec of the .bib filepaths (i.e. PathBuf's) inside it
+fn get_filepaths(path_dir: &Path) -> io::Result<Vec<PathBuf>> {
+    let mut bib_filepaths = vec![];
+
+    for path in fs::read_dir(path_dir)? {
+        let path = path?.path();
+        if let Some("bib") = path.extension().and_then(OsStr::to_str) {
+            bib_filepaths.push(path.to_owned());
+        }
+    }
+    Ok(bib_filepaths)
+}
+
+// Given a vec of PathBufs, return a vec of the file contents
+fn get_files(filepaths: Vec<PathBuf>) -> io::Result<Vec<String>> {
+    let mut files = vec![];
+    for path in filepaths.iter() {
+        files.push(fs::read_to_string(path)?);
+    }
+    Ok(files)
+}
+
+// Given a vec of Strings (contents of the .bib files), return a vec of Bibliography
+fn get_bibliographies(file_contents: Vec<String>) -> Vec<Bibliography>{
+    let mut bibliographies = vec![];
+    for file_content in file_contents.into_iter() {
+        bibliographies.push(Bibliography::parse(&file_content).unwrap());
+    }
+    bibliographies
+}
+
+fn unify_bibliography(bibliographies: Vec<Bibliography>) -> i32 {
     let mut unified_bibliography = Bibliography::new();
     let mut repetitions_found = 0;
     for bibliography in bibliographies {
         repetitions_found += add_to_unified(bibliography, &mut unified_bibliography);
     }
-
-    println!(
-        "Repetitions deleted: {}. Final number of entries: {}",
-        repetitions_found,
-        unified_bibliography.len()
-    );
+    repetitions_found
 }
 
 // Adds a Bibliography to another unified Bibliography file. Checks for repetitions in the process.
@@ -96,11 +125,20 @@ mod tests {
     use super::*;
 
     fn setup() -> (Bibliography, Bibliography) {
-        let file1 = fs::read_to_string("test_files/test1.bib").expect("Could not read file1");
-        let file2 = fs::read_to_string("test_files/test2.bib").expect("Could not read file2");
+        let file1 = fs::read_to_string("bib_files/test_files/test1.bib").expect("Could not read file1");
+        let file2 = fs::read_to_string("bib_files/test_files/test2.bib").expect("Could not read file2");
         let bibliography1 = Bibliography::parse(&file1).expect("Could not parse file1");
         let bibliography2 = Bibliography::parse(&file2).expect("Could not parse file2");
         (bibliography1, bibliography2)
+    }
+
+    #[test]
+    fn test_get_filepaths() {
+        let path_dir = PathBuf::from("bib_files/test_files/");
+        let filepaths = get_filepaths(path_dir.as_path()).unwrap();
+        assert_eq!(filepaths.len(), 2);
+        assert_eq!(filepaths[0].to_str().unwrap(), "bib_files/test_files/test1.bib");
+        assert_eq!(filepaths[1].to_str().unwrap(), "bib_files/test_files/test2.bib");
     }
 
     #[test]

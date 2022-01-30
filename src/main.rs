@@ -1,11 +1,10 @@
+use std::path::PathBuf;
+
 use bib_unifier;
 
 fn main() {
-    // let file1_path = "test_files/test1.bib";
-    // let file2_path = "test_files/test2.bib";
-
-    let config = bib_unifier::Config{
-        filepaths: vec![String::from("test_files/test1.bib"), String::from("test_files/test2.bib")],
+    let config = bib_unifier::Config {
+        path_dir: PathBuf::from(r"bib_files/test_files/"),
         similarity_threshold: 0.95,
         algorithm: bib_unifier::Algorithm::Levenshtein,
     };
