@@ -1,0 +1,1 @@
+This is just for testing that the program fails correctly when there are no .bib files in the directory

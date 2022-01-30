@@ -1,9 +1,5 @@
-//use ::std::fs;
-use std::{
-    ffi::OsStr,
-    fs, io,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
+use std::{ffi::OsStr, fs, io};
 
 use biblatex::{Bibliography, ChunksExt, Entry};
 
@@ -23,21 +19,26 @@ pub struct Config {
     pub algorithm: Algorithm,
 }
 
-pub fn run(mut config: Config) {
+pub fn run(mut config: Config) -> Result<(), io::Error> {
     // Get the bibliographies
-    let bibliographies = get_filepaths(config.path_dir.as_path()).unwrap();
-    let bibliographies = get_files(bibliographies).unwrap();
+    let filepaths = get_filepaths(config.path_dir.as_path())?;
+    let bibliographies = get_files(&filepaths)?;
     if bibliographies.len() == 0 {
-        panic!("No .bib files in the specified directory")
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "No .bib files in the specified directory",
+        ));
     }
-    let bibliographies = get_bibliographies(bibliographies);
+    let bibliographies = get_bibliographies(filepaths, bibliographies);
 
     // Unify the bibliography
     let unified_bibliography = unify_bibliography(bibliographies);
 
     // Write the result to a file
     config.path_dir.push("[bib_unifier]bibliography.bib");
-    fs::write(config.path_dir, unified_bibliography.to_bibtex_string()).unwrap();
+    fs::write(&config.path_dir, unified_bibliography.to_bibtex_string())?;
+    println!("Unified bibliography was written to {:?}.", config.path_dir);
+    Ok(())
 }
 
 // Read a directory path and return a vec of the .bib filepaths (i.e. PathBuf's) inside it
@@ -70,7 +71,7 @@ fn include_path(path: &Path) -> bool {
 }
 
 // Given a vec of PathBufs, return a vec of the file contents
-fn get_files(filepaths: Vec<PathBuf>) -> io::Result<Vec<String>> {
+fn get_files(filepaths: &Vec<PathBuf>) -> io::Result<Vec<String>> {
     let mut files = vec![];
     for path in filepaths.iter() {
         files.push(fs::read_to_string(path)?);
@@ -79,10 +80,16 @@ fn get_files(filepaths: Vec<PathBuf>) -> io::Result<Vec<String>> {
 }
 
 // Given a vec of Strings (contents of the .bib files), return a vec of Bibliography
-fn get_bibliographies(file_contents: Vec<String>) -> Vec<Bibliography> {
+fn get_bibliographies(filepaths: Vec<PathBuf>, file_contents: Vec<String>) -> Vec<Bibliography> {
     let mut bibliographies = vec![];
-    for file_content in file_contents.into_iter() {
-        bibliographies.push(Bibliography::parse(&file_content).unwrap());
+    for (idx, file_content) in file_contents.into_iter().enumerate() {
+        match Bibliography::parse(&file_content) {
+            Some(bibliography) => bibliographies.push(bibliography),
+            None => eprintln!(
+                "File {:?} could not be processed and was ignored.",
+                filepaths[idx]
+            ),
+        }
     }
     bibliographies
 }
@@ -95,7 +102,10 @@ fn unify_bibliography(bibliographies: Vec<Bibliography>) -> Bibliography {
     for bibliography in bibliographies {
         repetitions_found += add_to_unified(bibliography, &mut unified_bibliography);
     }
-    println!("Repetitions deleted: {}", repetitions_found);
+    println!(
+        "Found {} repetitions in the bibliography.",
+        repetitions_found
+    );
     unified_bibliography
 }
 
@@ -123,6 +133,7 @@ fn add_to_unified(to_add: Bibliography, unified_bibliography: &mut Bibliography)
 
 // Checks if an entry is already present in a Bibliography, with a given similarity threshold
 fn is_present(entry: &Entry, bibliography: &Bibliography) -> bool {
+    // todo Cambiar el unwrap y chequear doi!!!
     let entry_title = entry.title().unwrap().format_verbatim();
     // format_verbatim is necessary to get it as a String instead of [&Chunk]
     for prev_entry in bibliography.iter() {
@@ -188,6 +199,18 @@ mod tests {
         assert!(!include_path(
             PathBuf::from("bib_files/test_files/[bib_unifier]test1.bib").as_path()
         ));
+    }
+
+    #[test]
+    fn test_no_bib_files() {
+        // Check that the program fails appropriately when there are no .bib files in the directory
+        let config = Config {
+            path_dir: PathBuf::from(r"bib_files/no_bib_files/"),
+            similarity_threshold: 0.95,
+            algorithm: Algorithm::Levenshtein,
+        };
+        let result = run(config).map_err(|e| e.kind());
+        assert_eq!(result, Err(io::ErrorKind::Other))
     }
 
     #[test]
