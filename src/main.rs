@@ -8,6 +8,7 @@ fn main() -> Result<(), io::Error>{
         path_dir: PathBuf::from(r"bib_files/test_files/"),
         similarity_threshold: 0.75,
         algorithm: bib_unifier::Algorithm::Levenshtein,
+        silent: false,
     };
 
     bib_unifier::run(config)?;
