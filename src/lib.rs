@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, fs, io};
 
 use biblatex::{Bibliography, ChunksExt, Entry};
+use strsim;
 
 #[derive(Debug)]
 pub enum Algorithm {
@@ -32,7 +33,7 @@ pub fn run(mut config: Config) -> Result<(), io::Error> {
     let bibliographies = get_bibliographies(filepaths, bibliographies);
 
     // Unify the bibliography
-    let unified_bibliography = unify_bibliography(bibliographies);
+    let unified_bibliography = unify_bibliography(bibliographies, &config);
 
     // Write the result to a file
     config.path_dir.push("[bib_unifier]bibliography.bib");
@@ -96,11 +97,11 @@ fn get_bibliographies(filepaths: Vec<PathBuf>, file_contents: Vec<String>) -> Ve
 
 // Takes a vec of Bibliography and returns a single Bibliography file with repetitions deleted
 // as well as the number of repetitions that were deleted
-fn unify_bibliography(bibliographies: Vec<Bibliography>) -> Bibliography {
+fn unify_bibliography(bibliographies: Vec<Bibliography>, config: &Config) -> Bibliography {
     let mut unified_bibliography = Bibliography::new();
     let mut repetitions_found = 0;
     for bibliography in bibliographies {
-        repetitions_found += add_to_unified(bibliography, &mut unified_bibliography);
+        repetitions_found += add_to_unified(bibliography, &mut unified_bibliography, config);
     }
     println!(
         "Found {} repetitions in the bibliography.",
@@ -110,11 +111,15 @@ fn unify_bibliography(bibliographies: Vec<Bibliography>) -> Bibliography {
 }
 
 // Adds a Bibliography to another unified Bibliography file. Checks for repetitions in the process.
-fn add_to_unified(to_add: Bibliography, unified_bibliography: &mut Bibliography) -> i32 {
+fn add_to_unified(
+    to_add: Bibliography,
+    unified_bibliography: &mut Bibliography,
+    config: &Config,
+) -> i32 {
     // to_add will be consumed by this function
     let mut repetitions = 0;
     for mut entry in to_add.into_iter() {
-        if is_present(&entry, unified_bibliography) {
+        if is_present(&entry, unified_bibliography, config) {
             //println!("Repeated entry: {:?}", &entry);
             repetitions += 1
         } else {
@@ -132,16 +137,52 @@ fn add_to_unified(to_add: Bibliography, unified_bibliography: &mut Bibliography)
 }
 
 // Checks if an entry is already present in a Bibliography, with a given similarity threshold
-fn is_present(entry: &Entry, bibliography: &Bibliography) -> bool {
-    // todo Cambiar el unwrap y chequear doi!!!
-    let entry_title = entry.title().unwrap().format_verbatim();
-    // format_verbatim is necessary to get it as a String instead of [&Chunk]
+fn is_present(entry: &Entry, bibliography: &Bibliography, config: &Config) -> bool {
+    let entry_doi = entry.doi();
+    let entry_title = entry.title();
+
     for prev_entry in bibliography.iter() {
-        if entry_title == prev_entry.title().unwrap().format_verbatim() {
-            return true;
+        // Both have the doi field set
+        if let (Some(e_doi), Some(p_doi)) = (&entry_doi, &prev_entry.doi()) {
+            // Same doi considers it the same entry
+            if e_doi == p_doi {
+                return true;
+            }
+        }
+
+        // Both have the title field set
+        if let (Some(e_title), Some(p_title)) = (&entry_title, &prev_entry.title()) {
+            // Turn them into Strings instead of the default [&Chunk]
+            let e_title = e_title.format_verbatim();
+            let p_title = p_title.format_verbatim();
+
+            // First check for equality between the titles. If they are equal should return true
+            // independently of the similarity threshold (for every metric, will be 1).
+            // Should be much faster than actually running the strsim algorithms.
+            if e_title == p_title {
+                return true;
+            } else if config.similarity_threshold < 1.0
+                && test_similarity(&e_title, &p_title, config)
+            {
+                return true;
+            }
         }
     }
     false
+}
+
+fn test_similarity(title1: &str, title2: &str, config: &Config) -> bool {
+    let similarity = match config.algorithm {
+        Algorithm::Levenshtein => strsim::normalized_levenshtein(title1, title2),
+        Algorithm::DamerauLevenshtein => strsim::normalized_damerau_levenshtein(title1, title2),
+        Algorithm::Jaro => strsim::jaro(title1, title2),
+        Algorithm::JaroWinkler => strsim::jaro_winkler(title1, title2),
+        Algorithm::SorensenDice => strsim::sorensen_dice(title1, title2),
+    };
+    // if similarity >= config.similarity_threshold {
+    //     println!("{} ::: {}", title1, title2);
+    // }
+    similarity >= config.similarity_threshold
 }
 
 // Gets a new, non-repeated, citation key for an Entry

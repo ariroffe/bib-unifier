@@ -8,3 +8,4 @@ edition = "2021"
 
 [dependencies]
 biblatex = "0.4"
+strsim = "0.10.0"
