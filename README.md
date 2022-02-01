@@ -2,6 +2,8 @@
 
 Rust binary project for unifying a series of .bib files.
 
+*This project is still in early development and should not be used in production*
+
 ## Usage
 
 ```commandline
