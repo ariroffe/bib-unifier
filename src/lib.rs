@@ -165,6 +165,7 @@ fn add_bibliography_to_unified(
     repetitions
 }
 
+#[derive(Debug, PartialEq)]
 enum ComparisonResult {
     KeepBoth,
     KeepPrev,
@@ -348,33 +349,52 @@ mod tests {
     }
 
     #[test]
-    fn test_is_present() {
+    fn test_compare_entries() {
         let (bibliography1, bibliography2, mut config) = setup();
 
         // Identical title
-        let montague = bibliography1
+        let montague1 = bibliography1
             .get("Montague1973QuantificationOrdinaryEnglish")
             .unwrap();
-        assert!(is_present(montague, &bibliography2, &config));
-        let frege = bibliography1
-            .get("FregeGrundlagen")
-            .expect("No entry with key FregeGrundlagen");
-        assert!(!is_present(frege, &bibliography2, &config));
+        let montague2 = bibliography2
+            .get("Montague1973QuantificationOrdinaryEnglish")
+            .unwrap();
+        assert_eq!(
+            compare_entries(montague1, montague2, &config),
+            ComparisonResult::KeepPrev
+        );
+
+        // Compare with another different entry
+        let frege = bibliography1.get("FregeGrundlagen").unwrap();
+        assert_eq!(
+            compare_entries(montague1, frege, &config),
+            ComparisonResult::KeepBoth
+        );
 
         // Similar title
-        let bps = bibliography1
-            .get("BPS2018-WIAPL")
-            .expect("No entry with key BPS2018-WIAPL");
-        assert!(is_present(bps, &bibliography2, &config));
-        let carnap = bibliography1
-            .get("Carnap1942")
-            .expect("No entry with key Carnap1942");
-        assert!(is_present(carnap, &bibliography2, &config));
+        let bps1 = bibliography1.get("BPS2018-WIAPL").unwrap();
+        let bps2 = bibliography2.get("BPS2018-WIAPL").unwrap();
+        assert_eq!(
+            compare_entries(bps1, bps2, &config),
+            ComparisonResult::KeepPrev
+        );
+        let carnap1 = bibliography1.get("Carnap1942").unwrap();
+        let carnap2 = bibliography2.get("Carnap1942").unwrap();
+        assert_eq!(
+            compare_entries(carnap1, carnap2, &config),
+            ComparisonResult::KeepPrev
+        );
 
-        // Change the similarity value to 0.99 (should be false now)
+        // Change the similarity value to 0.99 (should keep both now)
         config.similarity_threshold = 0.99;
-        assert!(!is_present(bps, &bibliography2, &config));
-        assert!(!is_present(carnap, &bibliography2, &config));
+        assert_eq!(
+            compare_entries(bps1, bps2, &config),
+            ComparisonResult::KeepBoth
+        );
+        assert_eq!(
+            compare_entries(carnap1, carnap2, &config),
+            ComparisonResult::KeepBoth
+        );
     }
 
     #[test]
@@ -407,19 +427,22 @@ mod tests {
 
         // bibliography1 has 1 repeated entry inside
         assert_eq!(bibliography1.len(), 8);
-        let repetitions1 = add_to_unified(bibliography1, &mut unified_bibliography, &config);
+        let repetitions1 =
+            add_bibliography_to_unified(bibliography1, &mut unified_bibliography, &config);
         assert_eq!(unified_bibliography.len(), 7);
         assert_eq!(repetitions1, 1);
 
         // If we attempt to add bibliography1 again, we should not get any new entries
-        let repetitions2 = add_to_unified(bibliography1_copy, &mut unified_bibliography, &config);
+        let repetitions2 =
+            add_bibliography_to_unified(bibliography1_copy, &mut unified_bibliography, &config);
         assert_eq!(unified_bibliography.len(), 7);
         assert_eq!(repetitions2, 8); // because bibliography1 has 8 entries, 1 is repeated
 
         // bibliography2 has 2 repetitions (with bibliography 1) -- not counting similar entries
         config.similarity_threshold = 1.0;
         assert_eq!(bibliography2.len(), 6);
-        let repetitions3 = add_to_unified(bibliography2, &mut unified_bibliography, &config);
+        let repetitions3 =
+            add_bibliography_to_unified(bibliography2, &mut unified_bibliography, &config);
         assert_eq!(unified_bibliography.len(), 11);
         assert_eq!(repetitions3, 2);
 
@@ -428,7 +451,7 @@ mod tests {
         config.similarity_threshold = 0.7;
         let mut unified_bibliography2 = Bibliography::new();
         let repetitions4 =
-            add_to_unified(unified_bibliography, &mut unified_bibliography2, &config);
+            add_bibliography_to_unified(unified_bibliography, &mut unified_bibliography2, &config);
         assert_eq!(unified_bibliography2.len(), 9);
         assert_eq!(repetitions4, 2);
     }
