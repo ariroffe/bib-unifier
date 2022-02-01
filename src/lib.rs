@@ -78,11 +78,14 @@ fn validate_similarity(v: &str) -> Result<(), String> {
         "Threshold must be a valid number between 0 and 1 (e.g. 0.75)",
     ))
 }
-fn validate_output(v:&str) -> Result<(), String> {
+fn validate_output(v: &str) -> Result<(), String> {
     if let Ok(path) = v.parse::<PathBuf>() {
-        if let (Some(_filename), Some(extension)) = (path.file_name().and_then(OsStr::to_str), path.extension().and_then(OsStr::to_str)) {
+        if let (Some(_filename), Some(extension)) = (
+            path.file_name().and_then(OsStr::to_str),
+            path.extension().and_then(OsStr::to_str),
+        ) {
             if extension == "bib" {
-                return Ok(())
+                return Ok(());
             }
         }
     }
@@ -384,27 +387,11 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn test_no_bib_files() {
-        // Check that the program fails appropriately when there are no .bib files in the directory
-        let config = Config {
-            path_dir: PathBuf::from(r"bib_files/no_bib_files/"),
-            similarity_threshold: 0.95,
-            algorithm: Algorithm::Levenshtein,
-            silent: true,
-            output: None,
-        };
-        let result = run(config).map_err(|e| e.kind());
-        assert_eq!(result, Err(io::ErrorKind::Other))
-    }
-
     fn setup() -> (Bibliography, Bibliography, Config) {
-        let file1 =
-            fs::read_to_string("bib_files/test_files/test1.bib").expect("Could not read file1");
-        let file2 =
-            fs::read_to_string("bib_files/test_files/test2.bib").expect("Could not read file2");
-        let bibliography1 = Bibliography::parse(&file1).expect("Could not parse file1");
-        let bibliography2 = Bibliography::parse(&file2).expect("Could not parse file2");
+        let file1 = fs::read_to_string("bib_files/test_files/test1.bib").unwrap();
+        let file2 = fs::read_to_string("bib_files/test_files/test2.bib").unwrap();
+        let bibliography1 = Bibliography::parse(&file1).unwrap();
+        let bibliography2 = Bibliography::parse(&file2).unwrap();
         let config = Config {
             path_dir: PathBuf::from(r"bib_files/test_files/"),
             similarity_threshold: 0.7,
