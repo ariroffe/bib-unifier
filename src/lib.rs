@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, fs, io};
 
+use anyhow;
+use anyhow::Context;
 use biblatex::{Bibliography, ChunksExt, Entry};
 use clap::{ArgEnum, Parser};
 use read_input::prelude::*;
@@ -24,6 +26,16 @@ pub struct Config {
         help = "Directory where the .bib files are located"
     )]
     pub path_dir: PathBuf,
+
+    #[clap(
+        short,
+        long,
+        value_name = "PATH",
+        validator = validate_output,
+        help = "Path (directory + filename) to the desired output file",
+        display_order = 0
+    )]
+    pub output: Option<PathBuf>,
 
     // To test for similarity between titles, establish a threshold between 0.0 and 1.0
     #[clap(
@@ -59,31 +71,51 @@ pub struct Config {
 fn validate_similarity(v: &str) -> Result<(), String> {
     if let Ok(num) = v.parse::<f64>() {
         if num >= 0.0 && num <= 1.0 {
-            return Ok(())
+            return Ok(());
         }
     }
-    Err(String::from("Threshold must be a valid number between 0 and 1 (e.g. 0.75)"))
+    Err(String::from(
+        "Threshold must be a valid number between 0 and 1 (e.g. 0.75)",
+    ))
+}
+fn validate_output(v:&str) -> Result<(), String> {
+    if let Ok(path) = v.parse::<PathBuf>() {
+        if let (Some(_filename), Some(extension)) = (path.file_name().and_then(OsStr::to_str), path.extension().and_then(OsStr::to_str)) {
+            if extension == "bib" {
+                return Ok(())
+            }
+        }
+    }
+    Err(String::from("Output must be a path to a .bib file"))
 }
 
-pub fn run(mut config: Config) -> Result<(), io::Error> {
+pub fn run(mut config: Config) -> anyhow::Result<()> {
     // Get the bibliographies
-    let filepaths = get_filepaths(config.path_dir.as_path())?;
-    let bibliographies = get_files(&filepaths)?;
-    if bibliographies.len() == 0 {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            "No .bib files in the specified directory",
-        ));
-    }
+    let filepaths = get_filepaths(config.path_dir.as_path())
+        .with_context(|| "A problem was encountered with the input path")?;
+    let bibliographies =
+        get_files(&filepaths).with_context(|| "A problem was encountered with the input files")?;
+    anyhow::ensure!(
+        bibliographies.len() > 0,
+        "No .bib files in the specified input directory"
+    );
     let bibliographies = get_bibliographies(filepaths, bibliographies);
 
     // Unify the bibliography
     let unified_bibliography = unify_bibliography(bibliographies, &config);
 
     // Write the result to a file
+    // By default, the output path is the input path plus the following file name
     config.path_dir.push("[bib_unifier]bibliography.bib");
-    fs::write(&config.path_dir, unified_bibliography.to_bibtex_string())?;
-    println!("Unified bibliography was written to {:?}.", config.path_dir);
+    let mut path = config.path_dir.as_path();
+    // If the user entered a different output path, change that:
+    if let Some(output_path) = &config.output {
+        path = output_path.as_path()
+    }
+    fs::write(path, unified_bibliography.to_bibtex_string()).with_context(|| {
+        "A problem was encountered when writing the unified bibliography to the file"
+    })?;
+    println!("Unified bibliography was written to {:?}.", path);
     Ok(())
 }
 
@@ -360,6 +392,7 @@ mod tests {
             similarity_threshold: 0.95,
             algorithm: Algorithm::Levenshtein,
             silent: true,
+            output: None,
         };
         let result = run(config).map_err(|e| e.kind());
         assert_eq!(result, Err(io::ErrorKind::Other))
@@ -377,6 +410,7 @@ mod tests {
             similarity_threshold: 0.7,
             algorithm: Algorithm::Levenshtein,
             silent: true,
+            output: None,
         };
         (bibliography1, bibliography2, config)
     }
