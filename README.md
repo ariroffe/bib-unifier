@@ -40,7 +40,7 @@ OPTIONS:
 
 ## Examples
 
-###Simplest
+### Simplest
 ```commandline
 $ bib_unifier bib_files/test_files -s
 Unifiying bibliography...
@@ -51,7 +51,7 @@ Unified bibliography was written to "bib_files/test_files/[bib_unifier]bibliogra
 The program will look into any .bib files in the specified directory, read them, eliminate
 the repetitions among them, and concatenate them into a single output file.
 
-###Changing the output file
+### Changing the output file
 
 By default, the output file is named "[bib_unifier]bibliography.bib", and is placed in the same
 directory as the one given as input. 
@@ -153,11 +153,12 @@ was removed without asking the user.
 
 Also note that the citation keys of the two articles we decided to keep were identical. This might cause
 problems for other software reading this file. Therefore, `bib_unifier` renames the second key to `Prior1960_1`.
-If it found another file with the same key (either similar or not) it would save it as `Prior1960_2`, and so on.
+If it found yet another entry with the same key (either similar or not in the rest of the fields) it would save it 
+as `Prior1960_2`, and so on.
 
 Finally, you may see that the fields of the entries are printed in different order. This does not reflect a
 difference in the input files (they are actually stored in the same order there). When they are both printed to
-the console and written to the file, they will be ordered randomly. This is a behavior of a dependency crate,
+the console **and written to the output file**, they will be ordered randomly. This is a behavior of a dependency crate,
 I might consider fixing this later on.
 
 ### Using the similarity threshold
