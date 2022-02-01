@@ -1,15 +1,11 @@
-use std::path::PathBuf;
 use std::io;
+
+use clap::Parser;
 
 use bib_unifier;
 
 fn main() -> Result<(), io::Error>{
-    let config = bib_unifier::Config {
-        path_dir: PathBuf::from(r"bib_files/test_files/"),
-        similarity_threshold: 0.75,
-        algorithm: bib_unifier::Algorithm::Levenshtein,
-        silent: false,
-    };
+    let config = bib_unifier::Config::parse();
 
     bib_unifier::run(config)?;
     Ok(())

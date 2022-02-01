@@ -2,10 +2,11 @@ use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, fs, io};
 
 use biblatex::{Bibliography, ChunksExt, Entry};
+use clap::{ArgEnum, Parser};
 use read_input::prelude::*;
 use strsim;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, ArgEnum)]
 pub enum Algorithm {
     Levenshtein,
     DamerauLevenshtein,
@@ -14,12 +15,54 @@ pub enum Algorithm {
     SorensenDice,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Parser)]
+#[clap(author, version, about, long_about = None)]
 pub struct Config {
+    // Directory where the .bib files are located
+    #[clap(
+        value_name = "PATH",
+        help = "Directory where the .bib files are located"
+    )]
     pub path_dir: PathBuf,
+
+    // To test for similarity between titles, establish a threshold between 0.0 and 1.0
+    #[clap(
+        short = 't',
+        long = "threshold",
+        default_value_t = 1.0,
+        validator = validate_similarity,
+        help = "Value between 0 and 1 to compare entry titles",
+        display_order = 2
+    )]
     pub similarity_threshold: f64,
+
+    // Algorithm used
+    #[clap(
+        short,
+        long,
+        arg_enum,
+        default_value_t = Algorithm::Levenshtein,
+        help="Algorithm to use to compare similarity",
+        display_order = 3
+    )]
     pub algorithm: Algorithm,
+
+    // Will not ask for input regarding which entry to keep
+    #[clap(
+        short,
+        long,
+        help = "If present, will not ask for input regarding which repeated entry to keep",
+        display_order = 1
+    )]
     pub silent: bool,
+}
+fn validate_similarity(v: &str) -> Result<(), String> {
+    if let Ok(num) = v.parse::<f64>() {
+        if num >= 0.0 && num <= 1.0 {
+            return Ok(())
+        }
+    }
+    Err(String::from("Threshold must be a valid number between 0 and 1 (e.g. 0.75)"))
 }
 
 pub fn run(mut config: Config) -> Result<(), io::Error> {
@@ -224,7 +267,10 @@ fn decide_which_to_keep(prev_entry: &Entry, entry: &Entry, config: &Config) -> C
         return ComparisonResult::KeepPrev;
     }
 
-    // todo Check if both entries are equal in all fields (and again, return false)
+    // Check if both entries are equal in all fields (and again, retain the old one)
+    if prev_entry == entry {
+        return ComparisonResult::KeepPrev;
+    }
 
     // Otherwise, ask which
     println!("Entries:\n\n1- {}\n\n2- {}\n\nare similar. Do you wish to keep the first (1), the second (2) or both (3)?", prev_entry.to_bibtex_string(), entry.to_bibtex_string());

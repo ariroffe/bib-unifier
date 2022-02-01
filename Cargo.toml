@@ -3,6 +3,9 @@ name = "bib_unifier"
 version = "0.1.0"
 authors = ["Ariel Jonathan Roffé <arielroffe@filo.uba.ar>"]
 edition = "2021"
+description = "Unifies a set of .bib files into a single file, deleting repetitions"
+repository = "https://github.com/ariroffe/bib-unifier"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,3 +13,4 @@ edition = "2021"
 biblatex = "0.4"
 strsim = "0.10.0"
 read_input = "0.8"
+clap = { version = "3.0.13", features = ["derive"] }
