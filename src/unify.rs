@@ -2,7 +2,7 @@ use biblatex::{Bibliography, ChunksExt, Entry};
 use read_input::prelude::*;
 use strsim;
 
-use super::{Config, Algorithm};
+use super::{Algorithm, Config};
 
 // Takes a vec of Bibliography and returns a single Bibliography file with repetitions deleted
 // as well as the number of repetitions that were deleted
@@ -186,9 +186,9 @@ fn get_new_citation_key(old_key: &str, bibliography: &Bibliography) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-    use std::fs;
     use super::*;
+    use std::fs;
+    use std::path::PathBuf;
 
     fn setup() -> (Bibliography, Bibliography, Config) {
         let file1 = fs::read_to_string("bib_files/test_files/test1.bib").unwrap();

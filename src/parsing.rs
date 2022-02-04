@@ -42,7 +42,10 @@ pub fn get_files(filepaths: &Vec<PathBuf>) -> io::Result<Vec<String>> {
 }
 
 // Given a vec of Strings (contents of the .bib files), return a vec of Bibliography
-pub fn get_bibliographies(filepaths: Vec<PathBuf>, file_contents: Vec<String>) -> Vec<Bibliography> {
+pub fn get_bibliographies(
+    filepaths: Vec<PathBuf>,
+    file_contents: Vec<String>,
+) -> Vec<Bibliography> {
     let mut bibliographies = vec![];
     for (idx, file_content) in file_contents.into_iter().enumerate() {
         match Bibliography::parse(&file_content) {
