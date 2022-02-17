@@ -217,7 +217,7 @@ but not with `1`)
 
 ### Bibtex vs biblatex format
 
-If you include the `-b` or `--bibtex` flag, entries will be printed and saved with a slightly different format. e.g.:
+If you include the `-b` or `--biblatex` flag, entries will be printed and saved with a slightly different format. e.g.:
 
 ```commandline
 $ bib_unifier bib_files/test_files -b
