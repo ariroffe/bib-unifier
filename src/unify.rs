@@ -1,6 +1,7 @@
 use biblatex::{Bibliography, ChunksExt, Entry};
 use read_input::prelude::*;
 use strsim;
+use bunt;
 
 use super::{Algorithm, Config};
 
@@ -84,8 +85,8 @@ fn compare_entries(prev_entry: &Entry, entry: &Entry, config: &Config) -> Compar
     // Both have the same key
     if prev_entry.key == entry.key {
         if !config.silent {
-            println!("The following entries have the same key:");
-            println!("Note: If you wish to keep both, the key to the second entry will be automatically changed.\n");
+            bunt::println!("{$bold+red}The following entries have the same key:{/$}");
+            bunt::println!("{$green}Note: If you wish to keep both, the key to the second entry will be automatically changed.{/$}\n");
         }
         return decide_which_to_keep(prev_entry, entry, config);
     }
@@ -96,7 +97,7 @@ fn compare_entries(prev_entry: &Entry, entry: &Entry, config: &Config) -> Compar
         if prev_doi == entry_doi {
             // decide_which_to_keep returns false only if the user decides to preserve prev_entry
             if !config.silent {
-                println!("The following entries have the same DOI:\n");
+                bunt::println!("{$bold+red}The following entries have the same DOI:{/$}\n");
             }
             return decide_which_to_keep(prev_entry, entry, config);
         }
@@ -113,7 +114,7 @@ fn compare_entries(prev_entry: &Entry, entry: &Entry, config: &Config) -> Compar
         if prev_title == entry_title {
             // decide_which_to_keep returns false only if the user decides to preserve prev_entry
             if !config.silent {
-                println!("The following entries have the same title:\n");
+                bunt::println!("{$bold+red}The following entries have the same title:{/$}\n");
             }
             return decide_which_to_keep(prev_entry, entry, config);
         } else if config.similarity_threshold < 1.0
@@ -121,7 +122,7 @@ fn compare_entries(prev_entry: &Entry, entry: &Entry, config: &Config) -> Compar
         {
             // decide_which_to_keep returns false only if the user decides to preserve prev_entry
             if !config.silent {
-                println!("The following entries have the similar titles:\n");
+                bunt::println!("{$bold+red}The following entries have the similar titles:{/$}\n");
             }
             return decide_which_to_keep(prev_entry, entry, config);
         }
@@ -155,8 +156,8 @@ fn decide_which_to_keep(prev_entry: &Entry, entry: &Entry, config: &Config) -> C
     }
 
     // Otherwise, ask which
-    println!(
-        "1- {}\n\n2- {}\n\nDo you wish to keep the first (1), the second (2) or both (3)?",
+    bunt::println!(
+        "{$green}1-{/$} {}\n\n{$green}2-{/$} {}\n\n{$blue}Do you wish to keep the first (1), the second (2) or both (3)?{/$}",
         prev_entry.to_bibtex_string(),
         entry.to_bibtex_string()
     );
