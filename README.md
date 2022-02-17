@@ -246,6 +246,6 @@ options see which you like best.
 
 ## Credits and License
 
-Ariel Jonathan Roffé (CONICET, UBA)
+[Ariel Jonathan Roffé](https://arielroffe.quest/) (CONICET, UBA)
 
 This project is distributed under an MIT license (see the corresponding file).
