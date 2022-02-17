@@ -153,7 +153,7 @@ mod tests {
             algorithm: Algorithm::Levenshtein,
             silent: true,
             output: None,
-            bibtex: false,
+            biblatex: false,
         };
         if let Err(_) = run(config) {
             panic!("Error running")

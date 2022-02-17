@@ -82,6 +82,11 @@ enum ComparisonResult {
 
 // Checks if two entries are similar. If they are, decides what to do
 fn compare_entries(prev_entry: &Entry, entry: &Entry, config: &Config) -> ComparisonResult {
+    // If both entries are equal in all fields, retain the old one (it is simpler)
+    if prev_entry == entry {
+        return ComparisonResult::KeepPrev;
+    }
+
     // Both have the same key
     if prev_entry.key == entry.key {
         if !config.silent {
@@ -150,11 +155,6 @@ fn decide_which_to_keep(prev_entry: &Entry, entry: &Entry, config: &Config) -> C
         return ComparisonResult::KeepPrev;
     }
 
-    // Check if both entries are equal in all fields (and again, retain the old one)
-    if prev_entry == entry {
-        return ComparisonResult::KeepPrev;
-    }
-
     // Otherwise, ask which
     let (prev_entry_string, entry_string) = match config.biblatex {
         true => (prev_entry.to_biblatex_string(), entry.to_biblatex_string()),
@@ -200,8 +200,8 @@ fn add_entry_to_bibliography(mut entry: Entry, bibliography: &mut Bibliography) 
 fn get_new_citation_key(old_key: &str, bibliography: &Bibliography) -> String {
     let mut try_num: u8 = 1;
     loop {
-        // Create a new String with form "oldkey_trynum" (e.g. "Roffe2021_1")
-        let new_key = format!("{}_{}", old_key, try_num);
+        // Create a new String with form "oldkey(trynum)" (e.g. "Roffe2021(1)")
+        let new_key = format!("{}({})", old_key, try_num);
         // If it already exists, sum 1 to the number and try again. Else return the new string
         if bibliography.get(&new_key).is_some() {
             try_num += 1;
@@ -226,7 +226,7 @@ mod tests {
             algorithm: Algorithm::Levenshtein,
             silent: true,
             output: None,
-            bibtex: false,
+            biblatex: false,
         };
         (bibliography, config)
     }
@@ -259,7 +259,7 @@ mod tests {
             algorithm: Algorithm::Levenshtein,
             silent: true,
             output: None,
-            bibtex: false,
+            biblatex: false,
         };
         let mut bibliography = Bibliography::new();
 
@@ -272,8 +272,7 @@ mod tests {
 
     #[test]
     fn test_all_same_fields() {
-        let (mut bibliography1, mut config) = setup();
-        config.silent = false;
+        let (mut bibliography1, config) = setup();
 
         let file = fs::read_to_string("bib_files/test_files/all_same_fields.bib").unwrap();
         let bibliography2 = Bibliography::parse(&file).unwrap();
@@ -284,7 +283,6 @@ mod tests {
         let montague2 = bibliography2
             .get("Montague1973QuantificationOrdinaryEnglish")
             .unwrap();
-        // Should keep the first entry even if silent is false since all fields are identical
         assert_eq!(
             compare_entries(montague1, montague2, &config),
             ComparisonResult::KeepPrev
@@ -393,17 +391,17 @@ mod tests {
 
         assert_eq!(
             get_new_citation_key("Carnap1942", &bibliography1),
-            String::from("Carnap1942_1")
+            String::from("Carnap1942(1)")
         );
 
-        // Lets get Carnap1942, insert it into 1 again, withe key Carnap1942_1
+        // Lets get Carnap1942, insert it into 1 again, withe key Carnap1942(1)
         let mut carnap2 = bibliography1.get_resolved("Carnap1942").unwrap().clone();
-        carnap2.key = String::from("Carnap1942_1");
+        carnap2.key = String::from("Carnap1942(1)");
         bibliography1.insert(carnap2);
-        // Now get_new_citation_key should return "Carnap1942_2"
+        // Now get_new_citation_key should return "Carnap1942(2)"
         assert_eq!(
             get_new_citation_key("Carnap1942", &bibliography1),
-            String::from("Carnap1942_2")
+            String::from("Carnap1942(2)")
         );
     }
 }

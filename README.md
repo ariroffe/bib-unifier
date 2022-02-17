@@ -45,7 +45,7 @@ OPTIONS:
 
 ## Examples
 
-### Simplest
+### Simplest usage
 ```commandline
 $ bib_unifier bib_files/test_files -s
 Unifiying bibliography...
@@ -69,7 +69,7 @@ If you wish to change the output path, you can do so with the `-o` or `--output`
 ```commandline
 $ bib_unifier bib_files/test_files -s -o bib_files/test_files/output.bib
 Unifiying bibliography...
-Found 3 repetitions in the bibliography.
+Found 5 repetitions in the bibliography.
 Unified bibliography was written to "bib_files/test_files/output.bib".
 ```
 
@@ -84,92 +84,58 @@ the program always chooses the first variant it encounters.
 ```commandline
 $ bib_unifier bib_files/test_files
 Unifiying bibliography...
-Entries:
+The following entries have the same title:
 
 1- @article{humberstone1996,
-journal = {Journal of Philosophical Logic},
-pages = {451--461},
 author = {Lloyd Humberstone},
-number = {5},
-publisher = {Springer},
-volume = {25},
 ISSN = {00223611, 15730433},
-year = {1996},
+journal = {Journal of Philosophical Logic},
+number = {5},
+pages = {451--461},
+publisher = {Springer},
 title = {Valuational Semantics of Rule Derivability},
+volume = {25},
+year = {1996},
 }
 
 2- @article{humberstone1996rep,
+author = {Lloyd Humberstone},
 ISSN = {00223611, 15730433},
-title = {Valuational Semantics of Rule Derivability},
+journal = {Journal of Philosophical Logic},
+number = {5},
 pages = {451--461},
+publisher = {Springer},
+title = {Valuational Semantics of Rule Derivability},
 volume = {25},
 year = {1996},
-author = {Lloyd Humberstone},
-publisher = {Springer},
-number = {5},
-journal = {Journal of Philosophical Logic},
 }
 
-are similar. Do you wish to keep the first (1), the second (2) or both (3)?
-Enter your choice: 1
+Do you wish to keep the first (1), the second (2) or both (3)?
+Enter your choice: 
 
-Entries:
+[...]
 
-1- @article{Prior1960,
-volume = {21},
-eprint = {https://academic.oup.com/analysis/article-pdf/21/2/38/360684/21-2-38.pdf},
-year = {1960},
-author = {Arthur N. Prior},
-month = {12},
-journal = {Analysis},
-number = {2},
-issn = {0003-2638},
-doi = {10.1093/analys/21.2.38},
-url = {https://doi.org/10.1093/analys/21.2.38},
-pages = {38-39},
-title = {{The Runabout Inference-Ticket}},
-}
-
-2- @article{Prior1960,
-author = {Arthur Prior},
-month = {11},
-pages = {36-39},
-title = {{The Runabout Inference-Ticket}},
-issn = {0003-2639},
-url = {https://doi.org/10.1093/analys/21.2.38},
-eprint = {https://academic.oup.net/analysis/article-pdf/21/2/38/360684/21-2-38.pdf},
-doi = {10.1093/analys/21.2.38},
-volume = {20},
-number = {3},
-journal = {Analysis1},
-year = {1961},
-}
-
-are similar. Do you wish to keep the first (1), the second (2) or both (3)?
-Enter your choice: 3
-
-Found 2 repetitions in the bibliography.
+Found 5 repetitions in the bibliography.
 Unified bibliography was written to "bib_files/test_files/[bib_unifier]bibliography.bib".
 ```
 
-Notice that the program states that it found 2 repetitions, even though we told it that the Prior articles are two different ones.
-This is because, in the input files, there is another repeated entry that has all fields identical. That one
-was removed without asking the user.
+For any repeated entries it finds, it will ask which you want to keep only if they are not identical in
+key & all fields. If they are, it will not ask and keep just one copy.
 
-Also note that the citation keys of the two articles we decided to keep were identical. This might cause
-problems for other software reading this file. Therefore, `bib_unifier` renames the second key to `Prior1960_1`.
-If it found yet another entry with the same key (either similar or not in the rest of the fields) it would save it 
-as `Prior1960_2`, and so on.
+Repeated entries are detected as those that have:
 
-Finally, you may see that the fields of the entries are printed in different order. This does not reflect a
-difference in the input files (they are actually stored in the same order there). When they are both printed to
-the console **and written to the output file**, they will be ordered randomly. This is a behavior of a dependency crate,
-I might consider fixing this later on.
+- The same key (in this case, keeping both will make it rename the second key to "originalkey(1)", and so on)
+- The same doi (if present)
+- The same title
+- Similar title (see below)
+
+The program will check in that order.
+
 
 ### Using the similarity threshold
 
-By default, the program compares the title and doi fields to know if two entries might be the same.
-However, sometimes two entries that are actually the same have slightly different titles (and no doi set).
+By default, when looking at entry titles, the program compares if they are identical too see if they might be the same.
+However, sometimes two entries that are actually the same have slightly different titles.
 For these cases you may use the similarity threshold.
 
 By default, it is set to `1`. But a number greater than zero and lower than one will make the program 
@@ -180,73 +146,103 @@ To wit:
 - The [Jaro and Jaro-Winkler](https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance) distances
 - The [Sørensen-Dice coefficient](https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient)
 
-All range between `0` and `1`, where `1` is most similar and `0` least. If you are unsure about which metric to use, you should just leave the default option.
+All range between `0` and `1`, where `1` is most similar and `0` least. 
+If you are unsure about which metric to use, you should just leave the default option.
 
-You can set the similarity threshold with the `-t` and `--threshold` flags (the default is `1`), and the
+You can set the similarity threshold with the `-t` and `--threshold` flags, and the
 metric with the `a` and `--algorithm` flags (see the available options in the `--help` above).
 
 ```commandline
-$ bib_unifier bib_files/test_files
+$ bib_unifier bib_files/test_files -t 0.7
 Unifiying bibliography...
 
-... [the same entries it found before, plus:]
+[...]
 
-Entries:
+The following entries have the similar titles:
 
-1- @incollection{BPS2018-WIAPL,
-series = {Trends in Logic},
-title = {{What is a Paraconsistent Logic?}},
-publisher = {Springer},
-booktitle = {{Between Consistency and Inconsistency}},
-year = {2018},
-editor = {Walter Carnielli and Jacek Malinowski},
-author = {Barrio, Eduardo and Pailos, Federico and Szmuc, Damian},
-pages = {89--108},
+1- @incollection{BPS2018-WIAPL_1,
 address = {Dordrecht},
+author = {Barrio, Eduardo and Pailos, Federico and Szmuc, Damian},
+booktitle = {{Between Consistency and Inconsistency}},
+editor = {Walter Carnielli and Jacek Malinowski},
+pages = {89--108},
+publisher = {Springer},
+title = {{What is a paraconsistent logic?}},
+series = {Trends in Logic},
+year = {2018},
 }
 
 2- @incollection{BPS2018-WIAPL,
-booktitle = {{Between Consistency and Inconsistency}},
-series = {Trends in Logic},
-editor = {Walter Carnielli and Jacek Malinowski},
-title = {{What is a paraconsistent logic?}},
-publisher = {Springer},
-pages = {89--108},
-year = {2018},
-author = {Barrio, Eduardo and Pailos, Federico and Szmuc, Damian},
 address = {Dordrecht},
+author = {Barrio, Eduardo and Pailos, Federico and Szmuc, Damian},
+booktitle = {{Between Consistency and Inconsistency}},
+editor = {Walter Carnielli and Jacek Malinowski},
+pages = {89--108},
+publisher = {Springer},
+series = {Trends in Logic},
+title = {{What is a Paraconsistent Logic?}},
+year = {2018},
 }
 
-are similar. Do you wish to keep the first (1), the second (2) or both (3)?
-Enter your choice: 2
+Do you wish to keep the first (1), the second (2) or both (3)?
+Enter your choice: 1
 
-Entries:
+The following entries have the similar titles:
 
-1- @book{Carnap1942,
-title = {Introduction to Semantics},
-series = {Studies in Semantics},
-year = {1942},
-publisher = {Harvard University Press},
+1- @book{Carnap1942_1,
 author = {Rudolf Carnap},
+publisher = {Harvard University Press},
+series = {Studies in Semantics},
+title = {An Introduction to Semantics},
+year = {1942},
 }
 
 2- @book{Carnap1942,
 author = {Rudolf Carnap},
-series = {Studies in Semantics},
-title = {An Introduction to Semantics},
 publisher = {Harvard University Press},
+series = {Studies in Semantics},
+title = {Introduction to Semantics},
 year = {1942},
 }
 
-are similar. Do you wish to keep the first (1), the second (2) or both (3)?
-Enter your choice: 2
+[...]
 
-Found 5 repetitions in the bibliography.
+Found 7 repetitions in the bibliography.
 Unified bibliography was written to "bib_files/test_files/[bib_unifier]bibliography.bib".
 ```
 
-Note that the title comparison is case-sensitive (the BPS case was found with a similarity threshold of `0.7`
+Note that the title comparison is case-sensitive (the BPS case is found with a similarity threshold of `0.7`
 but not with `1`)
+
+
+### Bibtex vs biblatex format
+
+If you include the `-b` or `--bibtex` flag, entries will be printed and saved with a slightly different format. e.g.:
+
+```commandline
+$ bib_unifier bib_files/test_files -b
+Unifiying bibliography...
+The following entries have the same title:
+
+1- @article{humberstone1996,
+author = {Lloyd Humberstone},
+ISSN = {00223611, 15730433},
+journaltitle = {Journal of Philosophical Logic},
+number = {5},
+pages = {451--461},
+publisher = {Springer},
+title = {Valuational Semantics of Rule Derivability},
+volume = {25},
+year = {1996},
+}
+
+[...]
+
+```
+
+Note that it uses 'journaltitle' instead of 'journal'. There are other slight differences in format, run with both
+options see which you like best.
+
 
 ## Credits and License
 
