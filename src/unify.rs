@@ -80,13 +80,24 @@ enum ComparisonResult {
 }
 
 // Checks if two entries are similar. If they are, decides what to do
-// Will return false if the entry does NOT have to be added to the bibliography
 fn compare_entries(prev_entry: &Entry, entry: &Entry, config: &Config) -> ComparisonResult {
+    // Both have the same key
+    if prev_entry.key == entry.key {
+        if !config.silent {
+            println!("The following entries have the same key:");
+            println!("Note: If you wish to keep both, the key to the second entry will be automatically changed.\n");
+        }
+        return decide_which_to_keep(prev_entry, entry, config);
+    }
+
     // Both have the doi field set
     if let (Some(prev_doi), Some(entry_doi)) = (&prev_entry.doi(), &entry.doi()) {
         // Same doi is condidered the same entry
         if prev_doi == entry_doi {
             // decide_which_to_keep returns false only if the user decides to preserve prev_entry
+            if !config.silent {
+                println!("The following entries have the same DOI:\n");
+            }
             return decide_which_to_keep(prev_entry, entry, config);
         }
     }
@@ -101,14 +112,21 @@ fn compare_entries(prev_entry: &Entry, entry: &Entry, config: &Config) -> Compar
         // Should be much faster than actually running the strsim algorithms.
         if prev_title == entry_title {
             // decide_which_to_keep returns false only if the user decides to preserve prev_entry
+            if !config.silent {
+                println!("The following entries have the same title:\n");
+            }
             return decide_which_to_keep(prev_entry, entry, config);
         } else if config.similarity_threshold < 1.0
             && test_title_similarity(&prev_title, &entry_title, config)
         {
             // decide_which_to_keep returns false only if the user decides to preserve prev_entry
+            if !config.silent {
+                println!("The following entries have the similar titles:\n");
+            }
             return decide_which_to_keep(prev_entry, entry, config);
         }
     }
+
     ComparisonResult::KeepBoth
 }
 
@@ -137,7 +155,11 @@ fn decide_which_to_keep(prev_entry: &Entry, entry: &Entry, config: &Config) -> C
     }
 
     // Otherwise, ask which
-    println!("Entries:\n\n1- {}\n\n2- {}\n\nare similar. Do you wish to keep the first (1), the second (2) or both (3)?", prev_entry.to_bibtex_string(), entry.to_bibtex_string());
+    println!(
+        "1- {}\n\n2- {}\n\nDo you wish to keep the first (1), the second (2) or both (3)?",
+        prev_entry.to_bibtex_string(),
+        entry.to_bibtex_string()
+    );
     let input: u32 = input()
         .repeat_msg("Enter your choice: ")
         .err("The value must be either 1, 2 or 3.")
@@ -190,83 +212,185 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    fn setup() -> (Bibliography, Bibliography, Config) {
-        let file1 = fs::read_to_string("bib_files/test_files/test1.bib").unwrap();
-        let file2 = fs::read_to_string("bib_files/test_files/test2.bib").unwrap();
-        let bibliography1 = Bibliography::parse(&file1).unwrap();
-        let bibliography2 = Bibliography::parse(&file2).unwrap();
+    fn setup() -> (Bibliography, Config) {
+        let file = fs::read_to_string("bib_files/test_files/test.bib").unwrap();
+        let bibliography = Bibliography::parse(&file).unwrap();
         let config = Config {
             path_dir: PathBuf::from(r"bib_files/test_files/"),
-            similarity_threshold: 0.7,
+            similarity_threshold: 1.0,
             algorithm: Algorithm::Levenshtein,
             silent: true,
             output: None,
         };
-        (bibliography1, bibliography2, config)
+        (bibliography, config)
     }
 
     #[test]
-    fn test_compare_entries() {
-        let (bibliography1, bibliography2, mut config) = setup();
+    fn test_add_to_unified() {
+        let (bibliography1, config) = setup();
+        let bibliography1_copy = bibliography1.clone();
+        let mut unified_bibliography = Bibliography::new();
 
-        // Identical title
+        let repetitions =
+            add_bibliography_to_unified(bibliography1, &mut unified_bibliography, &config);
+        assert_eq!(unified_bibliography.len(), 6);
+        assert_eq!(repetitions, 0);
+
+        // If we attempt to add bibliography1 again, we should not get any new entries
+        let repetitions2 =
+            add_bibliography_to_unified(bibliography1_copy, &mut unified_bibliography, &config);
+        assert_eq!(unified_bibliography.len(), 6);
+        assert_eq!(repetitions2, 6);
+    }
+
+    #[test]
+    fn test_rep_in_file() {
+        let file = fs::read_to_string("bib_files/test_files/rep_in_file.bib").unwrap();
+        let bibliography1 = Bibliography::parse(&file).unwrap();
+        let config = Config {
+            path_dir: PathBuf::from(r"bib_files/test_files/"),
+            similarity_threshold: 1.0,
+            algorithm: Algorithm::Levenshtein,
+            silent: true,
+            output: None,
+        };
+        let mut bibliography = Bibliography::new();
+
+        // It should delete one repetition (the one present in bibliography1)
+        assert_eq!(
+            add_bibliography_to_unified(bibliography1, &mut bibliography, &config),
+            1
+        )
+    }
+
+    #[test]
+    fn test_all_same_fields() {
+        let (mut bibliography1, mut config) = setup();
+        config.silent = false;
+
+        let file = fs::read_to_string("bib_files/test_files/all_same_fields.bib").unwrap();
+        let bibliography2 = Bibliography::parse(&file).unwrap();
+
         let montague1 = bibliography1
             .get("Montague1973QuantificationOrdinaryEnglish")
             .unwrap();
         let montague2 = bibliography2
             .get("Montague1973QuantificationOrdinaryEnglish")
             .unwrap();
+        // Should keep the first entry even if silent is false since all fields are identical
         assert_eq!(
             compare_entries(montague1, montague2, &config),
             ComparisonResult::KeepPrev
         );
 
-        // Compare with another different entry
-        let frege = bibliography1.get("FregeGrundlagen").unwrap();
+        // It deletes one repetition
         assert_eq!(
-            compare_entries(montague1, frege, &config),
-            ComparisonResult::KeepBoth
-        );
+            add_bibliography_to_unified(bibliography2, &mut bibliography1, &config),
+            1
+        )
+    }
 
-        // Similar title
-        let bps1 = bibliography1.get("BPS2018-WIAPL").unwrap();
-        let bps2 = bibliography2.get("BPS2018-WIAPL").unwrap();
+    #[test]
+    fn test_only_same_key() {
+        let (mut bibliography1, config) = setup();
+
+        let file = fs::read_to_string("bib_files/test_files/only_same_key.bib").unwrap();
+        let bibliography2 = Bibliography::parse(&file).unwrap();
+
+        let frege1 = bibliography1.get("FregeGrundlagen").unwrap();
+        let frege2 = bibliography2.get("FregeGrundlagen").unwrap();
         assert_eq!(
-            compare_entries(bps1, bps2, &config),
+            compare_entries(frege1, frege2, &config),
             ComparisonResult::KeepPrev
         );
+
+        assert_eq!(
+            add_bibliography_to_unified(bibliography2, &mut bibliography1, &config),
+            1
+        )
+    }
+
+    #[test]
+    fn test_only_same_doi() {
+        let (mut bibliography1, config) = setup();
+
+        let file = fs::read_to_string("bib_files/test_files/only_same_doi.bib").unwrap();
+        let bibliography2 = Bibliography::parse(&file).unwrap();
+
+        let hardgree1 = bibliography1.get("Hardegree2005completeness").unwrap();
+        let hardgree2 = bibliography2.get("Hardegree2005completeness1").unwrap();
+        assert_eq!(
+            compare_entries(hardgree1, hardgree2, &config),
+            ComparisonResult::KeepPrev
+        );
+
+        assert_eq!(
+            add_bibliography_to_unified(bibliography2, &mut bibliography1, &config),
+            1
+        )
+    }
+
+    #[test]
+    fn test_only_same_title() {
+        let (mut bibliography1, config) = setup();
+
+        let file = fs::read_to_string("bib_files/test_files/only_same_title.bib").unwrap();
+        let bibliography2 = Bibliography::parse(&file).unwrap();
+
+        let prior1 = bibliography1.get("Prior1960").unwrap();
+        let prior2 = bibliography2.get("Prior1961").unwrap();
+        assert_eq!(
+            compare_entries(prior1, prior2, &config),
+            ComparisonResult::KeepPrev
+        );
+
+        assert_eq!(
+            add_bibliography_to_unified(bibliography2, &mut bibliography1, &config),
+            1
+        )
+    }
+
+    #[test]
+    fn test_similar_title() {
+        let (mut bibliography1, mut config) = setup();
+
+        let file = fs::read_to_string("bib_files/test_files/similar_title.bib").unwrap();
+        let bibliography2 = Bibliography::parse(&file).unwrap();
+
+        // With a similarity threshold of 1, it should keep both
         let carnap1 = bibliography1.get("Carnap1942").unwrap();
-        let carnap2 = bibliography2.get("Carnap1942").unwrap();
+        let carnap2 = bibliography2.get("Carnap1942_1").unwrap();
+        assert_eq!(
+            compare_entries(carnap1, carnap2, &config),
+            ComparisonResult::KeepBoth
+        );
+
+        // With a similarity threshold of 0.7, it should keep only the first
+        config.similarity_threshold = 0.7;
+        let carnap1 = bibliography1.get("Carnap1942").unwrap();
+        let carnap2 = bibliography2.get("Carnap1942_1").unwrap();
         assert_eq!(
             compare_entries(carnap1, carnap2, &config),
             ComparisonResult::KeepPrev
         );
 
-        // Change the similarity value to 0.99 (should keep both now)
-        config.similarity_threshold = 0.99;
         assert_eq!(
-            compare_entries(bps1, bps2, &config),
-            ComparisonResult::KeepBoth
-        );
-        assert_eq!(
-            compare_entries(carnap1, carnap2, &config),
-            ComparisonResult::KeepBoth
-        );
+            add_bibliography_to_unified(bibliography2, &mut bibliography1, &config),
+            2
+        )
     }
 
     #[test]
     fn test_get_new_citation_key() {
-        let (mut bibliography1, bibliography2, _config) = setup();
+        let (mut bibliography1, _config) = setup();
 
         assert_eq!(
             get_new_citation_key("Carnap1942", &bibliography1),
             String::from("Carnap1942_1")
         );
 
-        // Lets get Carnap1942 from bibliography2, insert it into 1 again, withe key Carnap1942_1
-        let mut carnap2 = bibliography2
-            .get_resolved("Carnap1942")
-            .expect("No entry with key Carnap1942");
+        // Lets get Carnap1942, insert it into 1 again, withe key Carnap1942_1
+        let mut carnap2 = bibliography1.get_resolved("Carnap1942").unwrap().clone();
         carnap2.key = String::from("Carnap1942_1");
         bibliography1.insert(carnap2);
         // Now get_new_citation_key should return "Carnap1942_2"
@@ -274,42 +398,5 @@ mod tests {
             get_new_citation_key("Carnap1942", &bibliography1),
             String::from("Carnap1942_2")
         );
-    }
-
-    #[test]
-    fn test_add_to_unified() {
-        let (bibliography1, bibliography2, mut config) = setup();
-        let bibliography1_copy = bibliography1.clone();
-        let mut unified_bibliography = Bibliography::new();
-
-        // bibliography1 has 1 repeated entry inside
-        assert_eq!(bibliography1.len(), 8);
-        let repetitions1 =
-            add_bibliography_to_unified(bibliography1, &mut unified_bibliography, &config);
-        assert_eq!(unified_bibliography.len(), 7);
-        assert_eq!(repetitions1, 1);
-
-        // If we attempt to add bibliography1 again, we should not get any new entries
-        let repetitions2 =
-            add_bibliography_to_unified(bibliography1_copy, &mut unified_bibliography, &config);
-        assert_eq!(unified_bibliography.len(), 7);
-        assert_eq!(repetitions2, 8); // because bibliography1 has 8 entries, 1 is repeated
-
-        // bibliography2 has 2 repetitions (with bibliography 1) -- not counting similar entries
-        config.similarity_threshold = 1.0;
-        assert_eq!(bibliography2.len(), 6);
-        let repetitions3 =
-            add_bibliography_to_unified(bibliography2, &mut unified_bibliography, &config);
-        assert_eq!(unified_bibliography.len(), 11);
-        assert_eq!(repetitions3, 2);
-
-        // If we now add the previous unified bibliography to a new one, using a lower similarity
-        // threshold, we should now get 9 entries (2 are similar)
-        config.similarity_threshold = 0.7;
-        let mut unified_bibliography2 = Bibliography::new();
-        let repetitions4 =
-            add_bibliography_to_unified(unified_bibliography, &mut unified_bibliography2, &config);
-        assert_eq!(unified_bibliography2.len(), 9);
-        assert_eq!(repetitions4, 2);
     }
 }

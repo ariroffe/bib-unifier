@@ -123,3 +123,32 @@ pub fn run(mut config: Config) -> anyhow::Result<()> {
     println!("Unified bibliography was written to {:?}.", path);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use biblatex::Bibliography;
+    use std::fs;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_run() {
+        let config = Config {
+            path_dir: PathBuf::from(r"bib_files/test_files/"),
+            similarity_threshold: 0.7,
+            algorithm: Algorithm::Levenshtein,
+            silent: true,
+            output: None,
+        };
+        if let Err(_) = run(config) {
+            panic!("Error running")
+        }
+
+        // Read the output file and check that it has 7 entries
+        // (the 6 from test.bib + 1 from rep_in_file.bib)
+        let file =
+            fs::read_to_string("bib_files/test_files/[bib_unifier]bibliography.bib").unwrap();
+        let bibliography = Bibliography::parse(&file).unwrap();
+        assert_eq!(bibliography.len(), 7);
+    }
+}

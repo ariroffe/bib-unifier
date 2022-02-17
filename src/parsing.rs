@@ -67,15 +67,7 @@ mod tests {
     fn test_get_filepaths() {
         let path_dir = PathBuf::from("bib_files/test_files/");
         let filepaths = get_filepaths(path_dir.as_path()).unwrap();
-        assert_eq!(filepaths.len(), 2);
-        assert_eq!(
-            filepaths[0].to_str().unwrap(),
-            "bib_files/test_files/test1.bib"
-        );
-        assert_eq!(
-            filepaths[1].to_str().unwrap(),
-            "bib_files/test_files/test2.bib"
-        );
+        assert_eq!(filepaths.len(), 7);
     }
 
     #[test]
@@ -93,12 +85,9 @@ mod tests {
 
     #[test]
     fn test_parsing() {
-        let file1 = fs::read_to_string("bib_files/test_files/test1.bib").unwrap();
-        let file2 = fs::read_to_string("bib_files/test_files/test2.bib").unwrap();
+        let file1 = fs::read_to_string("bib_files/test_files/test.bib").unwrap();
         let bibliography1 = Bibliography::parse(&file1).unwrap();
-        let bibliography2 = Bibliography::parse(&file2).unwrap();
-        assert_eq!(bibliography1.len(), 8);
-        assert_eq!(bibliography2.len(), 6);
+        assert_eq!(bibliography1.len(), 6);
         assert!(bibliography1.get("lalala").is_none());
         let prior = bibliography1
             .get("Prior1960")
