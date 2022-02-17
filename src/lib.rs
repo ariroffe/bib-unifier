@@ -69,7 +69,16 @@ pub struct Config {
         display_order = 1
     )]
     pub silent: bool,
+
+    #[clap(
+    short,
+    long,
+    help = "Default format for entries is bibtex. Setting this flag changes it to biblatex",
+    display_order = 4
+    )]
+    pub biblatex: bool,
 }
+
 fn validate_threshold(v: &str) -> Result<(), String> {
     if let Ok(num) = v.parse::<f64>() {
         if num >= 0.0 && num <= 1.0 {
@@ -117,7 +126,12 @@ pub fn run(mut config: Config) -> anyhow::Result<()> {
     if let Some(output_path) = &config.output {
         path = output_path.as_path()
     }
-    fs::write(path, unified_bibliography.to_bibtex_string()).with_context(|| {
+
+    let bibliography_string = match config.biblatex {
+        true => unified_bibliography.to_biblatex_string(),
+        false => unified_bibliography.to_bibtex_string(),
+    };
+    fs::write(path, bibliography_string).with_context(|| {
         "A problem was encountered when writing the unified bibliography to the file"
     })?;
     println!("Unified bibliography was written to {:?}.", path);
@@ -139,6 +153,7 @@ mod tests {
             algorithm: Algorithm::Levenshtein,
             silent: true,
             output: None,
+            bibtex: false,
         };
         if let Err(_) = run(config) {
             panic!("Error running")

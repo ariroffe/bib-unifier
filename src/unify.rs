@@ -156,10 +156,14 @@ fn decide_which_to_keep(prev_entry: &Entry, entry: &Entry, config: &Config) -> C
     }
 
     // Otherwise, ask which
+    let (prev_entry_string, entry_string) = match config.biblatex {
+        true => (prev_entry.to_biblatex_string(), entry.to_biblatex_string()),
+        false => (prev_entry.to_bibtex_string(), entry.to_bibtex_string()),
+    };
     bunt::println!(
         "{$green}1-{/$} {}\n\n{$green}2-{/$} {}\n\n{$blue}Do you wish to keep the first (1), the second (2) or both (3)?{/$}",
-        prev_entry.to_bibtex_string(),
-        entry.to_bibtex_string()
+        prev_entry_string,
+        entry_string
     );
     let input: u32 = input()
         .repeat_msg("Enter your choice: ")
@@ -222,6 +226,7 @@ mod tests {
             algorithm: Algorithm::Levenshtein,
             silent: true,
             output: None,
+            bibtex: false,
         };
         (bibliography, config)
     }
@@ -254,6 +259,7 @@ mod tests {
             algorithm: Algorithm::Levenshtein,
             silent: true,
             output: None,
+            bibtex: false,
         };
         let mut bibliography = Bibliography::new();
 

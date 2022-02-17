@@ -1,6 +1,6 @@
 [package]
 name = "bib_unifier"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Ariel Jonathan Roffé <arielroffe@filo.uba.ar>"]
 edition = "2021"
 description = "Unifies a set of .bib files into a single file, deleting repetitions"

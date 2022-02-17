@@ -9,7 +9,7 @@ Rust binary project for unifying a series of .bib files.
 ```commandline
 $ bib_unifier --help
 
-bib_unifier 0.1.0
+bib_unifier 0.1.1
 Ariel Jonathan Roffé <arielroffe@filo.uba.ar>
 Unifies a set of .bib files into a single file, deleting repetitions
 
@@ -33,6 +33,9 @@ OPTIONS:
             Algorithm to use to compare similarity [default: levenshtein] [possible values:
             levenshtein, damerau-levenshtein, jaro, jaro-winkler, sorensen-dice]
 
+    -b, --biblatex
+            Default format for entries is bibtex. Setting this flag changes it to biblatex
+    
     -h, --help
             Print help information
 
@@ -58,9 +61,9 @@ the repetitions among them, and concatenate them into a single output file.
 By default, the output file is named "[bib_unifier]bibliography.bib", and is placed in the same
 directory as the one given as input. 
 
-Note that the program is set to ignore files named
-"[bib_unifier]bibliography.bib". That is so that, if you run the program again (with the same or
-different parameters) does not take previously generated output as new input.
+Note that the program is set to ignore files that begin with
+"[bib_unifier]". That is so that, if you run the program again (with the same or
+different parameters) it does not take previously generated output as new input.
 
 If you wish to change the output path, you can do so with the `-o` or `--output` flags:
 ```commandline
