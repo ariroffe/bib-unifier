@@ -56,6 +56,8 @@ Unified bibliography was written to "bib_files/test_files/[bib_unifier]bibliogra
 The program will look into any .bib files in the specified directory, read them, eliminate
 the repetitions among them, and concatenate them into a single output file.
 
+The .bib files have to be in a valid format, otherwise the program will exit with an error.
+
 ### Changing the output file
 
 By default, the output file is named "[bib_unifier]bibliography.bib", and is placed in the same
@@ -124,7 +126,7 @@ key & all fields. If they are, it will not ask and keep just one copy.
 
 Repeated entries are detected as those that have:
 
-- The same key (in this case, keeping both will make it rename the second key to "originalkey(1)", and so on)
+- The same key (in this case, keeping both will make it rename the second key to "originalkey_1", and so on)
 - The same doi (if present)
 - The same title
 - Similar title (see below)

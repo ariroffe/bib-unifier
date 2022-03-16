@@ -113,7 +113,7 @@ pub fn run(mut config: Config) -> anyhow::Result<()> {
         bibliographies.len() > 0,
         "No .bib files in the specified input directory"
     );
-    let bibliographies = get_bibliographies(filepaths, bibliographies);
+    let bibliographies = get_bibliographies(filepaths, bibliographies)?;
 
     // Unify the bibliography
     let unified_bibliography = unify_bibliography(bibliographies, &config);

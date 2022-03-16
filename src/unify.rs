@@ -201,7 +201,7 @@ fn get_new_citation_key(old_key: &str, bibliography: &Bibliography) -> String {
     let mut try_num: u8 = 1;
     loop {
         // Create a new String with form "oldkey(trynum)" (e.g. "Roffe2021(1)")
-        let new_key = format!("{}({})", old_key, try_num);
+        let new_key = format!("{}_{}", old_key, try_num);
         // If it already exists, sum 1 to the number and try again. Else return the new string
         if bibliography.get(&new_key).is_some() {
             try_num += 1;
@@ -391,17 +391,17 @@ mod tests {
 
         assert_eq!(
             get_new_citation_key("Carnap1942", &bibliography1),
-            String::from("Carnap1942(1)")
+            String::from("Carnap1942_1")
         );
 
-        // Lets get Carnap1942, insert it into 1 again, withe key Carnap1942(1)
+        // Lets get Carnap1942, insert it into 1 again, withe key Carnap1942_1
         let mut carnap2 = bibliography1.get_resolved("Carnap1942").unwrap().clone();
-        carnap2.key = String::from("Carnap1942(1)");
+        carnap2.key = String::from("Carnap1942_1");
         bibliography1.insert(carnap2);
-        // Now get_new_citation_key should return "Carnap1942(2)"
+        // Now get_new_citation_key should return "Carnap1942_2"
         assert_eq!(
             get_new_citation_key("Carnap1942", &bibliography1),
-            String::from("Carnap1942(2)")
+            String::from("Carnap1942_2")
         );
     }
 }

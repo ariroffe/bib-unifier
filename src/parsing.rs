@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, fs, io};
 
-use biblatex::{Bibliography, ChunksExt};
+use biblatex::{Bibliography, BibliographyError};
 
 // Read a directory path and return a vec of the .bib filepaths (i.e. PathBuf's) inside it
 pub fn get_filepaths(path_dir: &Path) -> io::Result<Vec<PathBuf>> {
@@ -45,23 +45,27 @@ pub fn get_files(filepaths: &Vec<PathBuf>) -> io::Result<Vec<String>> {
 pub fn get_bibliographies(
     filepaths: Vec<PathBuf>,
     file_contents: Vec<String>,
-) -> Vec<Bibliography> {
+) -> Result<Vec<Bibliography>, BibliographyError> {
     let mut bibliographies = vec![];
     for (idx, file_content) in file_contents.into_iter().enumerate() {
         match Bibliography::parse(&file_content) {
-            Some(bibliography) => bibliographies.push(bibliography),
-            None => eprintln!(
-                "File {:?} could not be processed and was ignored.",
-                filepaths[idx]
-            ),
+            Ok(bibliography) => bibliographies.push(bibliography),
+            Err(e) => {
+                eprintln!(
+                    "A problem was encountered while processing file {:?}.",
+                    filepaths[idx]
+                );
+                return Err(e);
+            }
         }
     }
-    bibliographies
+    Ok(bibliographies)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use biblatex::{ChunksExt, BibliographyError};
 
     #[test]
     fn test_get_filepaths() {
@@ -94,5 +98,22 @@ mod tests {
             .expect("No entry with key Prior1960");
         let prior_title = prior.title().unwrap().format_verbatim();
         assert_eq!(&prior_title, "The Runabout Inference-Ticket")
+    }
+
+    #[test]
+    fn test_parsing_incorrect() {
+        let file = fs::read_to_string("bib_files/incorrect.bib").unwrap();
+        match Bibliography::parse(&file) {
+            Ok(_) => panic!("Should return Err"),
+            Err(s) => {
+                assert_eq!(
+                    s,
+                    BibliographyError::MalformedField(
+                        "conigliocorbalan".into(),
+                        "author".into()
+                    )
+                );
+            }
+        };
     }
 }
