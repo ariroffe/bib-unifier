@@ -6,6 +6,8 @@ edition = "2021"
 description = "Unifies a set of .bib files into a single file, deleting repetitions"
 repository = "https://github.com/ariroffe/bib-unifier"
 license = "MIT"
+keywords =["bibliography", "unifier", "latex", "bib", "bibtex"]
+categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
