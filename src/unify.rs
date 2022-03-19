@@ -5,8 +5,7 @@ use bunt;
 
 use super::{Algorithm, Config};
 
-// Takes a vec of Bibliography and returns a single Bibliography file with repetitions deleted
-// as well as the number of repetitions that were deleted
+/// Takes a vec of Bibliography and returns a single Bibliography file with repetitions deleted
 pub fn unify_bibliography(bibliographies: Vec<Bibliography>, config: &Config) -> Bibliography {
     println!("Unifiying bibliography...");
     let mut unified_bibliography = Bibliography::new();
@@ -22,8 +21,8 @@ pub fn unify_bibliography(bibliographies: Vec<Bibliography>, config: &Config) ->
     unified_bibliography
 }
 
-// Adds a Bibliography to another unified Bibliography file. Checks for repetitions in the process.
-fn add_bibliography_to_unified(
+/// Adds a Bibliography to another Bibliography. Checks for repetitions in the process
+pub fn add_bibliography_to_unified(
     to_add: Bibliography,
     unified_bibliography: &mut Bibliography,
     config: &Config,
@@ -73,15 +72,28 @@ fn add_bibliography_to_unified(
     repetitions
 }
 
+/// Possible results of a comparison between two Entry objects
 #[derive(Debug, PartialEq)]
-enum ComparisonResult {
+pub enum ComparisonResult {
     KeepBoth,
     KeepPrev,
     KeepEntry,
 }
 
-// Checks if two entries are similar. If they are, decides what to do
-fn compare_entries(prev_entry: &Entry, entry: &Entry, config: &Config) -> ComparisonResult {
+/// Checks if two entries are similar. If they are, decides what to do
+///
+/// Entries will be considered the same if they are equal in all fields & in key. In that case,
+/// this function will not ask which to keep and just return `KeepPrev`.
+/// Otherwise, they will be considered similar if (in this order):
+///
+/// - They have the same cite key
+/// - They have the same doi (must be present in both)
+/// - They have the same title
+/// - The similarity threshold is <1 and they have similar titles
+///
+/// In all these cases, it will call `decide_which_to_keep`.
+/// If none of the above apply, it will return `KeepBoth`.
+pub fn compare_entries(prev_entry: &Entry, entry: &Entry, config: &Config) -> ComparisonResult {
     // If both entries are equal in all fields, retain the old one (it is simpler)
     if prev_entry == entry {
         return ComparisonResult::KeepPrev;
@@ -136,7 +148,8 @@ fn compare_entries(prev_entry: &Entry, entry: &Entry, config: &Config) -> Compar
     ComparisonResult::KeepBoth
 }
 
-fn test_title_similarity(title1: &str, title2: &str, config: &Config) -> bool {
+/// Apply similarity metrics to see if two titles (Strings) are sufficiently similar
+pub fn test_title_similarity(title1: &str, title2: &str, config: &Config) -> bool {
     let similarity = match config.algorithm {
         Algorithm::Levenshtein => strsim::normalized_levenshtein(title1, title2),
         Algorithm::DamerauLevenshtein => strsim::normalized_damerau_levenshtein(title1, title2),
@@ -147,9 +160,11 @@ fn test_title_similarity(title1: &str, title2: &str, config: &Config) -> bool {
     similarity >= config.similarity_threshold
 }
 
-// Given two entries which we have previously decided are similar, decides whether to keep
-// the old one (only return false), the new one (delete the old one and return true), or both (just return true)
-fn decide_which_to_keep(prev_entry: &Entry, entry: &Entry, config: &Config) -> ComparisonResult {
+/// Given two entries which we have previously decided are similar, decides which to keep
+///
+/// Will print to the terminal and wait for user input (either 1, 2 or 3, for
+/// keep the first, keep the second, keep both, respectively)
+pub fn decide_which_to_keep(prev_entry: &Entry, entry: &Entry, config: &Config) -> ComparisonResult {
     // In silent mode, always retain the old entry
     if config.silent {
         return ComparisonResult::KeepPrev;
@@ -184,8 +199,11 @@ fn decide_which_to_keep(prev_entry: &Entry, entry: &Entry, config: &Config) -> C
     }
 }
 
-// Adds an Entry to a Bibliography, checking that the key is not repeated
-fn add_entry_to_bibliography(mut entry: Entry, bibliography: &mut Bibliography) {
+/// Adds an Entry to a Bibliography, checking that the key is not repeated
+///
+/// If the cite key is already present in the bibliography, it will get a new
+/// non-repeated key.
+pub fn add_entry_to_bibliography(mut entry: Entry, bibliography: &mut Bibliography) {
     // If it is not present, we add it to the unified bibliography
     // First check if the citation key is already present
     if bibliography.get(&entry.key).is_some() {
@@ -196,8 +214,12 @@ fn add_entry_to_bibliography(mut entry: Entry, bibliography: &mut Bibliography) 
     bibliography.insert(entry);
 }
 
-// Gets a new, non-repeated, citation key for an Entry
-fn get_new_citation_key(old_key: &str, bibliography: &Bibliography) -> String {
+/// Gets a new, non-repeated, citation key for an Entry.
+///
+/// The new key will consist of "prevkey_number". For example, if we give it
+/// "Prior1960" it will return "Prior1960_1", or "Prior1960_2" if both "Prior1960"
+/// and "Prior1960_1" already exist in the Bibliography, and so on...
+pub fn get_new_citation_key(old_key: &str, bibliography: &Bibliography) -> String {
     let mut try_num: u8 = 1;
     loop {
         // Create a new String with form "oldkey(trynum)" (e.g. "Roffe2021(1)")

@@ -8,8 +8,9 @@ use clap::{ArgEnum, Parser};
 mod parsing;
 use crate::parsing::*;
 mod unify;
-use crate::unify::*;
+pub use crate::unify::*;
 
+/// Name of the algorithm to compare Entry title similarity
 #[derive(Debug, Clone, ArgEnum)]
 pub enum Algorithm {
     Levenshtein,
@@ -19,16 +20,18 @@ pub enum Algorithm {
     SorensenDice,
 }
 
+/// Configuration struct for how bib_unifier will run
 #[derive(Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
 pub struct Config {
-    // Directory where the .bib files are located
+    /// Directory where the .bib files are located
     #[clap(
         value_name = "PATH",
         help = "Directory where the .bib files are located"
     )]
     pub path_dir: PathBuf,
 
+    /// Path to the output file (optional)
     #[clap(
         short,
         long,
@@ -39,7 +42,7 @@ pub struct Config {
     )]
     pub output: Option<PathBuf>,
 
-    // To test for similarity between titles, establish a threshold between 0.0 and 1.0
+    /// Threshold to test title similarity. Must be between 0.0 and 1.0
     #[clap(
         short = 't',
         long = "threshold",
@@ -50,7 +53,7 @@ pub struct Config {
     )]
     pub similarity_threshold: f64,
 
-    // Algorithm used
+    /// Algorithm used
     #[clap(
         short,
         long,
@@ -61,7 +64,7 @@ pub struct Config {
     )]
     pub algorithm: Algorithm,
 
-    // Will not ask for input regarding which entry to keep
+    /// If true, will not ask for input regarding which entry to keep
     #[clap(
         short,
         long,
@@ -70,6 +73,7 @@ pub struct Config {
     )]
     pub silent: bool,
 
+    /// Write to file in Bibtex or Biblatex format
     #[clap(
     short,
     long,
@@ -103,6 +107,8 @@ fn validate_output(v: &str) -> Result<(), String> {
     Err(String::from("Output must be a path to a .bib file"))
 }
 
+/// Get the .bib files from a path, parse them and unify them into a single .bib file
+/// deleting repetitions
 pub fn run(mut config: Config) -> anyhow::Result<()> {
     // Get the bibliographies
     let filepaths = get_filepaths(config.path_dir.as_path())

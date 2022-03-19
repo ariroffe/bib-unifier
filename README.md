@@ -243,7 +243,7 @@ year = {1996},
 ```
 
 Note that it uses 'journaltitle' instead of 'journal'. There are other slight differences in format, run with both
-options see which you like best.
+options and see which you like best.
 
 
 ## Credits and License
